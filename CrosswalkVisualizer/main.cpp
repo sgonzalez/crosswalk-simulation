@@ -1,43 +1,87 @@
 
-//
-// Disclamer:
-// ----------
-//
-// This code will work only if you selected window, graphics and audio.
-//
-// Note that the "Run Script" build phase will copy the required frameworks
-// or dylibs to your application bundle so you can execute it on any OS X
-// computer.
-//
-// Your resource files (images, sounds, fonts, ...) are also copied to your
-// application bundle. To get the path to these resource, use the helper
-// method resourcePath() from ResourcePath.hpp
-//
-
 #include <SFML/Graphics.hpp>
 
-int main()
-{
-    sf::RenderWindow window(sf::VideoMode(200, 200), "SFML works!");
-    sf::CircleShape shape(100.f);
-    shape.setFillColor(sf::Color::Green);
+using namespace sf;
+using namespace std;
+
+#define DISTANCE_EDGE_MIDDLE 1155 // distance from where cars spawn to the middle of the crosswalk (i.e. 7*330/2)
+#define DISTANCE_TO_CROSSWALK 165 // distance person has to walk to get to the crosswalk (i.e. 330/2)
+#define WIDTH_CROSSWALK 24
+#define LENGTH_CROSSWALK 46
+
+#define SCALING 3
+
+RenderWindow window(VideoMode(DISTANCE_TO_CROSSWALK*2*SCALING, LENGTH_CROSSWALK*2*SCALING), "Santiago and Matt's Crosswalk Visualizer");
+
+void setup();
+void render();
+void update(Time delta);
+void handleEvent(Event e);
+
+RectangleShape background, road;
+
+int main() {
+	Clock clock;
+	setup();
 	
-    while (window.isOpen())
-    {
+	// Start the game loop
+    while (window.isOpen()) {
+		Time delta = clock.restart();
+        // Process events
         sf::Event event;
         while (window.pollEvent(event))
         {
-            if (event.type == sf::Event::Closed)
+            // Close window : exit
+            if (event.type == sf::Event::Closed) {
                 window.close();
+            }
+			
+            // Espace pressed : exit
+            if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape) {
+                window.close();
+            }
+			
+			handleEvent(event);
         }
 		
+        // Clear screen
         window.clear();
-        window.draw(shape);
+		
+		// Update the stuff
+		update(delta);
+		
+		// Draw the stuff
+		render();
+		
+        // Update the window
         window.display();
     }
 	
     return 0;
 }
+
+void setup() {
+	background = RectangleShape(Vector2f(window.getSize().x, window.getSize().y));
+    background.setFillColor(Color::Green);
+	
+	road = RectangleShape(Vector2f(window.getSize().x, SCALING*LENGTH_CROSSWALK));
+	road.setPosition(0, window.getSize().y/2-SCALING*LENGTH_CROSSWALK/2);
+    road.setFillColor(Color::Black);
+}
+
+void update(Time delta) {
+	
+}
+
+void render() {
+	window.draw(background);
+	window.draw(road);
+}
+
+void handleEvent(Event e) {
+	
+}
+
 
 // Here is a small helper for you ! Have a look.
 //#include "ResourcePath.hpp"
