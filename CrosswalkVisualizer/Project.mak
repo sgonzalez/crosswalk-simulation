@@ -3,7 +3,7 @@
 # into a single executable file named 'foo'.
 
 TARGET_APP=SIM
-SIM: SIM.o m.o
+SIM: main.o m.o
 # or...
 SIM: $(patsubst %.cxx,%.o,$(wildcard *.cxx))
 
