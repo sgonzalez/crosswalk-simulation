@@ -1,24 +1,28 @@
 
 #include <SFML/Graphics.hpp>
+#include <vector>
 
 using namespace sf;
 using namespace std;
 
-#define DISTANCE_EDGE_MIDDLE 1155 // distance from where cars spawn to the middle of the crosswalk (i.e. 7*330/2)
-#define DISTANCE_TO_CROSSWALK 165 // distance person has to walk to get to the crosswalk (i.e. 330/2)
-#define WIDTH_CROSSWALK 24
-#define LENGTH_CROSSWALK 46
+#define DISTANCE_EDGE_MIDDLE 1155.0 // distance from where cars spawn to the middle of the crosswalk (i.e. 7*330/2)
+#define DISTANCE_TO_CROSSWALK 165.0 // distance person has to walk to get to the crosswalk (i.e. 330/2)
+#define BLOCK_WIDTH (330.0-24)
+#define WIDTH_CROSSWALK 24.0
+#define LENGTH_CROSSWALK 46.0
 
-#define SCALING 3
+#define SCALING 0.5
 
-RenderWindow window(VideoMode(DISTANCE_TO_CROSSWALK*2*SCALING, LENGTH_CROSSWALK*2*SCALING), "Santiago and Matt's Crosswalk Visualizer");
+RenderWindow window(VideoMode(DISTANCE_EDGE_MIDDLE*2*SCALING, LENGTH_CROSSWALK*14*SCALING), "Santiago and Matt's Crosswalk Visualizer");
 
 void setup();
 void render();
 void update(Time delta);
 void handleEvent(Event e);
 
-RectangleShape background, road;
+RectangleShape background, road, topUIBox;
+vector<RectangleShape> crosswalkLines;
+vector<RectangleShape> residentialBlocks;
 
 int main() {
 	Clock clock;
@@ -60,6 +64,10 @@ int main() {
     return 0;
 }
 
+
+
+
+
 void setup() {
 	background = RectangleShape(Vector2f(window.getSize().x, window.getSize().y));
     background.setFillColor(Color::Green);
@@ -67,6 +75,27 @@ void setup() {
 	road = RectangleShape(Vector2f(window.getSize().x, SCALING*LENGTH_CROSSWALK));
 	road.setPosition(0, window.getSize().y/2-SCALING*LENGTH_CROSSWALK/2);
     road.setFillColor(Color::Black);
+	
+	topUIBox = RectangleShape(Vector2f(window.getSize().x-60, 60));
+	topUIBox.setPosition(30, 0);
+	topUIBox.setFillColor(Color(80, 80, 80, 164));
+	
+	for (int i = 0; i < 7; i++) {
+		RectangleShape line = RectangleShape(Vector2f(WIDTH_CROSSWALK*SCALING, road.getSize().y/20));
+		line.setPosition(window.getSize().x/2 - WIDTH_CROSSWALK*SCALING/2, road.getPosition().y + road.getSize().y/20 + i*road.getSize().y/7);
+		crosswalkLines.push_back(line);
+	}
+	
+	for (int i = 0; i < 7; i++) {
+		RectangleShape b1 = RectangleShape(Vector2f(BLOCK_WIDTH*SCALING, BLOCK_WIDTH*SCALING));
+		b1.setPosition(12*SCALING+i*(330)*SCALING, road.getPosition().y-12*SCALING-BLOCK_WIDTH*SCALING);
+		b1.setFillColor(Color(0,200,0));
+		RectangleShape b2 = RectangleShape(Vector2f(BLOCK_WIDTH*SCALING, BLOCK_WIDTH*SCALING));
+		b2.setPosition(12*SCALING+i*(330)*SCALING, road.getPosition().y+LENGTH_CROSSWALK*SCALING+12*SCALING);
+		b2.setFillColor(Color(0,200,0));
+		crosswalkLines.push_back(b1);
+		crosswalkLines.push_back(b2);
+	}
 }
 
 void update(Time delta) {
@@ -76,6 +105,9 @@ void update(Time delta) {
 void render() {
 	window.draw(background);
 	window.draw(road);
+	for (std::vector<RectangleShape>::iterator it = crosswalkLines.begin(); it != crosswalkLines.end(); ++it) window.draw(*it);
+	for (std::vector<RectangleShape>::iterator it = residentialBlocks.begin(); it != residentialBlocks.end(); ++it) window.draw(*it);
+	window.draw(topUIBox);
 }
 
 void handleEvent(Event e) {
