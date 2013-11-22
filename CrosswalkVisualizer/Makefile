@@ -40,7 +40,7 @@ endif
 # End of the kludge
 
 # these are linking flags provided for your applications
-LDFLAGS?=
+LDFLAGS?=-lsfml-graphics -lsfml-window -lsfml-system
 # flags for building your shared libraries
 SOFLAGS?=-shared
 # flags for updating a static archive 

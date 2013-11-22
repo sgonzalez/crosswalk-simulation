@@ -1,4 +1,4 @@
-# Here is an example of the simplist project file in the world.  The
+# Here is an example of the simplest project file in the world.  The
 # goal is to build an object file from each C/C++ file, then link these
 # into a single executable file named 'foo'.
 
