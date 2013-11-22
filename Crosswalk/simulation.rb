@@ -28,8 +28,8 @@ STREAM_CARS = 2
 
 class Simulation
 	  
-	def initialize( experiment, time, seed )
-		puts "\x1b[0;1mExperiment #{experiment}; Time #{time} minutes; Seed #{seed}\x1b[0m\n\n"
+	def initialize( experiment, time, seed, trace )
+		puts "\x1b[0;1mExperiment #{experiment}; Tracefile #{trace}; Time #{time} minutes; Seed #{seed}\x1b[0m\n\n"
 	  
 	  @run_time = time*MINUTE
     @rands = StreamedLehmerGen.new(seed)

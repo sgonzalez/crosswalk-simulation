@@ -11,6 +11,6 @@ unless ARGV.length == 3
   exit 1
 end
 
-Simulation.new ARGV[0][0], ARGV[1].to_i, ARGV[2].to_f
+Simulation.new ARGV[0][0], ARGV[1].to_i, ARGV[2].to_f, ARGV[7]
 
 exit 0
