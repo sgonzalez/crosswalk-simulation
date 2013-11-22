@@ -1,10 +1,3 @@
-Santiago Gonzalez
-Next Event Crosswalk Simulation
+Santiago Gonzalez and Matt Buland
+Next Event Crosswalk Simulation Visualizer
 
-Lehmer 32b pRNG:
-- lehmers.rb (all)
-- Usage (search "rands")
-
-Welford:
-- welford.rb (all)
-- Usage (search "wlf_person_waits" and "wlf_car_waits")
