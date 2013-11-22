@@ -1,0 +1,10 @@
+Santiago Gonzalez
+Next Event Crosswalk Simulation
+
+Lehmer 32b pRNG:
+- lehmers.rb (all)
+- Usage (search "rands")
+
+Welford:
+- welford.rb (all)
+- Usage (search "wlf_person_waits" and "wlf_car_waits")
