@@ -1,6 +1,8 @@
 
 #include <SFML/Graphics.hpp>
+#include "ResourcesHelper.h"
 #include <vector>
+#include <string>
 
 using namespace sf;
 using namespace std;
@@ -14,6 +16,7 @@ using namespace std;
 #define SCALING 0.5
 
 RenderWindow window(VideoMode(DISTANCE_EDGE_MIDDLE*2*SCALING, LENGTH_CROSSWALK*14*SCALING), "Santiago and Matt's Crosswalk Visualizer");
+Font font;
 
 void setup();
 void render();
@@ -21,11 +24,13 @@ void update(Time delta);
 void handleEvent(Event e);
 
 RectangleShape background, road, topUIBox;
+Text titleLabel;
 vector<RectangleShape> crosswalkLines;
 vector<RectangleShape> residentialBlocks;
 
 int main() {
 	Clock clock;
+	if (!font.loadFromFile(resourcePath() + "HelveticaNeue.ttf")) return EXIT_FAILURE;
 	setup();
 	
 	// Start the game loop
@@ -80,6 +85,10 @@ void setup() {
 	topUIBox.setPosition(30, 0);
 	topUIBox.setFillColor(Color(80, 80, 80, 164));
 	
+	titleLabel = Text("Crosswalk Visualizer", font, 30);
+	titleLabel.setPosition(45, 10);
+    titleLabel.setColor(sf::Color::Black);
+	
 	for (int i = 0; i < 7; i++) {
 		RectangleShape line = RectangleShape(Vector2f(WIDTH_CROSSWALK*SCALING, road.getSize().y/20));
 		line.setPosition(window.getSize().x/2 - WIDTH_CROSSWALK*SCALING/2, road.getPosition().y + road.getSize().y/20 + i*road.getSize().y/7);
@@ -108,6 +117,7 @@ void render() {
 	for (std::vector<RectangleShape>::iterator it = crosswalkLines.begin(); it != crosswalkLines.end(); ++it) window.draw(*it);
 	for (std::vector<RectangleShape>::iterator it = residentialBlocks.begin(); it != residentialBlocks.end(); ++it) window.draw(*it);
 	window.draw(topUIBox);
+	window.draw(titleLabel);
 }
 
 void handleEvent(Event e) {

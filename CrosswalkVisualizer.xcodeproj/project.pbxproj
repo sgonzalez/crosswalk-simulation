@@ -8,15 +8,19 @@
 
 /* Begin PBXBuildFile section */
 		7E281021183FB948000FFB39 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7E28101E183FB948000FFB39 /* main.cpp */; };
-		7E281022183FB948000FFB39 /* ResourcePath.mm in Sources */ = {isa = PBXBuildFile; fileRef = 7E281020183FB948000FFB39 /* ResourcePath.mm */; };
+		7E28104018428DC3000FFB39 /* MacResourcePath.mm in Sources */ = {isa = PBXBuildFile; fileRef = 7E28103D18428DC3000FFB39 /* MacResourcePath.mm */; };
+		7E28104318428FC4000FFB39 /* HelveticaNeue.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 7E28104218428FC4000FFB39 /* HelveticaNeue.ttf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		7E281006183FB880000FFB39 /* CrosswalkVisualizer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CrosswalkVisualizer.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7E28101E183FB948000FFB39 /* main.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = main.cpp; path = CrosswalkVisualizer/main.cpp; sourceTree = SOURCE_ROOT; };
-		7E28101F183FB948000FFB39 /* ResourcePath.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = ResourcePath.hpp; path = CrosswalkVisualizer/ResourcePath.hpp; sourceTree = SOURCE_ROOT; };
-		7E281020183FB948000FFB39 /* ResourcePath.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = ResourcePath.mm; path = CrosswalkVisualizer/ResourcePath.mm; sourceTree = SOURCE_ROOT; };
 		7E281023183FB956000FFB39 /* SIM-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = "SIM-Info.plist"; path = "CrosswalkVisualizer/SIM-Info.plist"; sourceTree = SOURCE_ROOT; };
+		7E28103C18428DC3000FFB39 /* MacResourcePath.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = MacResourcePath.hpp; path = CrosswalkVisualizer/MacResourcePath.hpp; sourceTree = SOURCE_ROOT; };
+		7E28103D18428DC3000FFB39 /* MacResourcePath.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = MacResourcePath.mm; path = CrosswalkVisualizer/MacResourcePath.mm; sourceTree = SOURCE_ROOT; };
+		7E28103E18428DC3000FFB39 /* ResourcesHelper.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ResourcesHelper.cpp; path = CrosswalkVisualizer/ResourcesHelper.cpp; sourceTree = SOURCE_ROOT; };
+		7E28103F18428DC3000FFB39 /* ResourcesHelper.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ResourcesHelper.h; path = CrosswalkVisualizer/ResourcesHelper.h; sourceTree = SOURCE_ROOT; };
+		7E28104218428FC4000FFB39 /* HelveticaNeue.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = HelveticaNeue.ttf; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -49,9 +53,11 @@
 		7E281008183FB880000FFB39 /* SIM */ = {
 			isa = PBXGroup;
 			children = (
+				7E28103C18428DC3000FFB39 /* MacResourcePath.hpp */,
+				7E28103D18428DC3000FFB39 /* MacResourcePath.mm */,
+				7E28103E18428DC3000FFB39 /* ResourcesHelper.cpp */,
+				7E28103F18428DC3000FFB39 /* ResourcesHelper.h */,
 				7E28101E183FB948000FFB39 /* main.cpp */,
-				7E28101F183FB948000FFB39 /* ResourcePath.hpp */,
-				7E281020183FB948000FFB39 /* ResourcePath.mm */,
 				7E281010183FB880000FFB39 /* Resources */,
 				7E281009183FB880000FFB39 /* Supporting Files */,
 			);
@@ -69,6 +75,7 @@
 		7E281010183FB880000FFB39 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				7E28104218428FC4000FFB39 /* HelveticaNeue.ttf */,
 			);
 			name = Resources;
 			sourceTree = "<group>";
@@ -125,6 +132,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7E28104318428FC4000FFB39 /* HelveticaNeue.ttf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -151,7 +159,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				7E281022183FB948000FFB39 /* ResourcePath.mm in Sources */,
+				7E28104018428DC3000FFB39 /* MacResourcePath.mm in Sources */,
 				7E281021183FB948000FFB39 /* main.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
