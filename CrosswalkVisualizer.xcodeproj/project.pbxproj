@@ -10,7 +10,6 @@
 		7E281021183FB948000FFB39 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7E28101E183FB948000FFB39 /* main.cpp */; };
 		7E28104018428DC3000FFB39 /* MacResourcePath.mm in Sources */ = {isa = PBXBuildFile; fileRef = 7E28103D18428DC3000FFB39 /* MacResourcePath.mm */; };
 		7E28104318428FC4000FFB39 /* HelveticaNeue.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 7E28104218428FC4000FFB39 /* HelveticaNeue.ttf */; };
-		7E2810461842905A000FFB39 /* VisEngine.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7E2810441842905A000FFB39 /* VisEngine.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -22,8 +21,6 @@
 		7E28103E18428DC3000FFB39 /* ResourcesHelper.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ResourcesHelper.cpp; path = CrosswalkVisualizer/ResourcesHelper.cpp; sourceTree = SOURCE_ROOT; };
 		7E28103F18428DC3000FFB39 /* ResourcesHelper.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ResourcesHelper.h; path = CrosswalkVisualizer/ResourcesHelper.h; sourceTree = SOURCE_ROOT; };
 		7E28104218428FC4000FFB39 /* HelveticaNeue.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = HelveticaNeue.ttf; sourceTree = SOURCE_ROOT; };
-		7E2810441842905A000FFB39 /* VisEngine.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = VisEngine.cpp; sourceTree = SOURCE_ROOT; };
-		7E2810451842905A000FFB39 /* VisEngine.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = VisEngine.h; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -58,10 +55,8 @@
 			children = (
 				7E28103C18428DC3000FFB39 /* MacResourcePath.hpp */,
 				7E28103D18428DC3000FFB39 /* MacResourcePath.mm */,
-				7E28103E18428DC3000FFB39 /* ResourcesHelper.cpp */,
-				7E2810451842905A000FFB39 /* VisEngine.h */,
-				7E2810441842905A000FFB39 /* VisEngine.cpp */,
 				7E28103F18428DC3000FFB39 /* ResourcesHelper.h */,
+				7E28103E18428DC3000FFB39 /* ResourcesHelper.cpp */,
 				7E28101E183FB948000FFB39 /* main.cpp */,
 				7E281010183FB880000FFB39 /* Resources */,
 				7E281009183FB880000FFB39 /* Supporting Files */,
@@ -166,7 +161,6 @@
 			files = (
 				7E28104018428DC3000FFB39 /* MacResourcePath.mm in Sources */,
 				7E281021183FB948000FFB39 /* main.cpp in Sources */,
-				7E2810461842905A000FFB39 /* VisEngine.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

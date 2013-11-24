@@ -1,6 +1,7 @@
 
 #include <SFML/Graphics.hpp>
 #include "ResourcesHelper.h"
+#include <iostream>
 #include <vector>
 #include <string>
 
@@ -18,17 +19,27 @@ using namespace std;
 RenderWindow window(VideoMode(DISTANCE_EDGE_MIDDLE*2*SCALING, LENGTH_CROSSWALK*14*SCALING), "Santiago and Matt's Crosswalk Visualizer");
 Font font;
 
+string tracefilename;
+
 void setup();
 void render();
 void update(Time delta);
 void handleEvent(Event e);
 
+void resetVis();
+
 RectangleShape background, road, topUIBox;
-Text titleLabel;
+Text titleLabel, infoLabel;
 vector<RectangleShape> crosswalkLines;
 vector<RectangleShape> residentialBlocks;
 
-int main() {
+int main(int argc, const char *argv[]) {
+	tracefilename = "trace.dat";
+	if (argc == 2) {
+		tracefilename = string(argv[1]);
+	}
+	cout << "Reading trace from: " << tracefilename << endl;
+	
 	Clock clock;
 	if (!font.loadFromFile(resourcePath() + "HelveticaNeue.ttf")) return EXIT_FAILURE;
 	setup();
@@ -86,8 +97,12 @@ void setup() {
 	topUIBox.setFillColor(Color(80, 80, 80, 164));
 	
 	titleLabel = Text("Crosswalk Visualizer", font, 30);
-	titleLabel.setPosition(45, 10);
+	titleLabel.setPosition(45, 5);
     titleLabel.setColor(sf::Color::Black);
+	
+	infoLabel = Text("Press 'R' to reset visualization", font, 15);
+	infoLabel.setPosition(45, 40);
+    infoLabel.setColor(Color::Black);
 	
 	for (int i = 0; i < 7; i++) {
 		RectangleShape line = RectangleShape(Vector2f(WIDTH_CROSSWALK*SCALING, road.getSize().y/20));
@@ -105,6 +120,8 @@ void setup() {
 		crosswalkLines.push_back(b1);
 		crosswalkLines.push_back(b2);
 	}
+	
+	resetVis();
 }
 
 void update(Time delta) {
@@ -118,11 +135,28 @@ void render() {
 	for (std::vector<RectangleShape>::iterator it = residentialBlocks.begin(); it != residentialBlocks.end(); ++it) window.draw(*it);
 	window.draw(topUIBox);
 	window.draw(titleLabel);
+	window.draw(infoLabel);
 }
 
 void handleEvent(Event e) {
-	
+	if (e.type == Event::KeyPressed && e.key.code == Keyboard::R) {
+		resetVis();
+	}
 }
+
+
+
+#pragma mark - Trace file stuff
+
+void resetVis() {
+	std::cout << "\n\nResetting Visualization...";
+}
+
+
+
+
+
+
 
 
 // Here is a small helper for you ! Have a look.
