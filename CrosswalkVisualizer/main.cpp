@@ -4,6 +4,8 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <fstream>
+#include <sstream>
 
 using namespace sf;
 using namespace std;
@@ -16,10 +18,16 @@ using namespace std;
 
 #define SCALING 0.5
 
+enum StoplightColor {
+	StoplightRed,
+	StoplightYellow,
+	StoplightGreen
+	};
+
 RenderWindow window(VideoMode(DISTANCE_EDGE_MIDDLE*2*SCALING, LENGTH_CROSSWALK*14*SCALING), "Santiago and Matt's Crosswalk Visualizer");
 Font font;
 
-string tracefilename;
+string tracefile;
 
 void setup();
 void render();
@@ -27,19 +35,31 @@ void update(Time delta);
 void handleEvent(Event e);
 
 void resetVis();
+void updateStoplightColor(StoplightColor newcolor);
+vector<float> carsLeftBound;
+vector<float> carsRightBound;
+StoplightColor currentColor = StoplightGreen;
+unsigned int currentTrace;
 
-RectangleShape background, road, topUIBox;
-Text titleLabel, infoLabel;
+RectangleShape background, road, topUIBox, stoplightRect, walkRect;
+CircleShape cRed, cYellow, cGreen;
+Text titleLabel, infoLabel, timeLabel, walkLabel;
 vector<RectangleShape> crosswalkLines;
 vector<RectangleShape> residentialBlocks;
 
 int main(int argc, const char *argv[]) {
-	tracefilename = "trace.dat";
+	// Load trace file
+	string tracefilename = "../Crosswalk/trace.dat";
 	if (argc == 2) {
 		tracefilename = string(argv[1]);
 	}
 	cout << "Reading trace from: " << tracefilename << endl;
+	ifstream t(tracefilename);
+	stringstream buffer;
+	buffer << t.rdbuf();
+	tracefile = buffer.str();
 	
+	// Setup
 	Clock clock;
 	if (!font.loadFromFile(resourcePath() + "HelveticaNeue.ttf")) return EXIT_FAILURE;
 	setup();
@@ -96,13 +116,23 @@ void setup() {
 	topUIBox.setPosition(30, 0);
 	topUIBox.setFillColor(Color(80, 80, 80, 164));
 	
-	titleLabel = Text("Crosswalk Visualizer", font, 30);
-	titleLabel.setPosition(45, 5);
-    titleLabel.setColor(sf::Color::Black);
+	stoplightRect = RectangleShape(Vector2f(130, 40));
+	stoplightRect.setPosition(window.getSize().x/2-65, 10);
+	stoplightRect.setFillColor(Color(0, 0, 0, 64));
 	
-	infoLabel = Text("Press 'R' to reset visualization", font, 15);
-	infoLabel.setPosition(45, 40);
-    infoLabel.setColor(Color::Black);
+	walkRect = RectangleShape(Vector2f(70, 40));
+	walkRect.setPosition(window.getSize().x/2+65+30, 10);
+	walkRect.setFillColor(Color(0, 0, 0, 64));
+	walkLabel = Text("walk", font, 25);
+	walkLabel.setPosition(walkRect.getPosition().x+10, 15);
+	
+	cRed = CircleShape(15);
+	cRed.setPosition(stoplightRect.getPosition().x+5, 15);
+	cYellow = CircleShape(15);
+	cYellow.setPosition(stoplightRect.getPosition().x+50, 15);
+	cGreen = CircleShape(15);
+	cGreen.setPosition(stoplightRect.getPosition().x+95, 15);
+	updateStoplightColor(StoplightGreen);
 	
 	for (int i = 0; i < 7; i++) {
 		RectangleShape line = RectangleShape(Vector2f(WIDTH_CROSSWALK*SCALING, road.getSize().y/20));
@@ -121,11 +151,30 @@ void setup() {
 		crosswalkLines.push_back(b2);
 	}
 	
+	titleLabel = Text("Crosswalk Visualizer", font, 30);
+	titleLabel.setPosition(45, 5);
+    titleLabel.setColor(sf::Color::Black);
+	
+	infoLabel = Text("Press 'R' to reset visualization", font, 15);
+	infoLabel.setPosition(45, 40);
+    infoLabel.setColor(Color::Black);
+	
+	timeLabel = Text("0 s", font, 25);
+	timeLabel.setPosition(window.getSize().x-150, 15);
+	timeLabel.setColor(Color::Black);
+	
+	
 	resetVis();
 }
 
 void update(Time delta) {
+	carsLeftBound.clear();
+	carsRightBound.clear();
+	currentTrace ++;
 	
+	// update vectors and get information from tracefile
+	
+	timeLabel.setString(to_string(1)+" s");
 }
 
 void render() {
@@ -134,8 +183,15 @@ void render() {
 	for (std::vector<RectangleShape>::iterator it = crosswalkLines.begin(); it != crosswalkLines.end(); ++it) window.draw(*it);
 	for (std::vector<RectangleShape>::iterator it = residentialBlocks.begin(); it != residentialBlocks.end(); ++it) window.draw(*it);
 	window.draw(topUIBox);
+	window.draw(stoplightRect);
+	window.draw(walkRect);
+	window.draw(walkLabel);
+	window.draw(cRed);
+	window.draw(cYellow);
+	window.draw(cGreen);
 	window.draw(titleLabel);
 	window.draw(infoLabel);
+	window.draw(timeLabel);
 }
 
 void handleEvent(Event e) {
@@ -149,85 +205,32 @@ void handleEvent(Event e) {
 #pragma mark - Trace file stuff
 
 void resetVis() {
-	std::cout << "\n\nResetting Visualization...";
+	std::cout << "\nResetting Visualization...";
+	
+	currentTrace = 0;
 }
 
-
-
-
-
-
-
-
-// Here is a small helper for you ! Have a look.
-//#include "ResourcePath.hpp"
-
-/*int main(int, char const**)
-{
-    // Create the main window
-    sf::RenderWindow window(sf::VideoMode(800, 600), "SFML window");
-
-    // Set the Icon
-    sf::Image icon;
-    if (!icon.loadFromFile(resourcePath() + "icon.png")) {
-        return EXIT_FAILURE;
-    }
-    window.setIcon(icon.getSize().x, icon.getSize().y, icon.getPixelsPtr());
-
-    // Load a sprite to display
-    sf::Texture texture;
-    if (!texture.loadFromFile(resourcePath() + "cute_image.jpg")) {
-        return EXIT_FAILURE;
-    }
-    sf::Sprite sprite(texture);
-
-    // Create a graphical text to display
-    sf::Font font;
-    if (!font.loadFromFile(resourcePath() + "sansation.ttf")) {
-        return EXIT_FAILURE;
-    }
-    sf::Text text("Hello SFML", font, 50);
-    text.setColor(sf::Color::Black);
-
-    // Load a music to play
-    sf::Music music;
-    if (!music.openFromFile(resourcePath() + "nice_music.ogg")) {
-        return EXIT_FAILURE;
-    }
-
-    // Play the music
-    music.play();
-
-    // Start the game loop
-    while (window.isOpen())
-    {
-        // Process events
-        sf::Event event;
-        while (window.pollEvent(event))
-        {
-            // Close window : exit
-            if (event.type == sf::Event::Closed) {
-                window.close();
-            }
-
-            // Espace pressed : exit
-            if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape) {
-                window.close();
-            }
-        }
-
-        // Clear screen
-        window.clear();
-
-        // Draw the sprite
-        window.draw(sprite);
-
-        // Draw the string
-        window.draw(text);
-
-        // Update the window
-        window.display();
-    }
-    
-    return EXIT_SUCCESS;
-}*/
+void updateStoplightColor(StoplightColor newcolor) {
+	currentColor = newcolor;
+	
+	switch (currentColor) {
+		case StoplightGreen:
+			cRed.setFillColor(Color(100,0,0));
+			cYellow.setFillColor(Color(100,100,0));
+			cGreen.setFillColor(Color::Green);
+			walkLabel.setColor(Color(100,0,0));
+			break;
+		case StoplightYellow:
+			cRed.setFillColor(Color(100,0,0));
+			cYellow.setFillColor(Color::Yellow);
+			cGreen.setFillColor(Color(0,100,0));
+			walkLabel.setColor(Color(100,0,0));
+			break;
+		case StoplightRed:
+			cRed.setFillColor(Color::Red);
+			cYellow.setFillColor(Color(100,100,0));
+			cGreen.setFillColor(Color(0,100,0));
+			walkLabel.setColor(Color::White);
+			break;
+	}
+}
