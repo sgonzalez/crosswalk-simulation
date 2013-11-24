@@ -254,8 +254,8 @@ void render() {
 	// draw leftbound cars
 	for (std::vector<float>::iterator it = carsLeftBound.begin(); it != carsLeftBound.end(); ++it) {
 		float position = *it;
-		CircleShape cCar(5);
-		cCar.setOrigin(2.5, 2.5);
+		CircleShape cCar(4);
+		cCar.setOrigin(2, 2);
 		cCar.setPosition(position*SCALING, road.getPosition().y+road.getSize().y*1.0/5.0);
 		cCar.setFillColor(Color::Magenta);
 		window.draw(cCar);
