@@ -17,6 +17,7 @@ using namespace std;
 #define LENGTH_CROSSWALK 46.0
 
 #define SCALING 0.5
+#define UPDATE_INTERVAL 0.01 // update every UPDATE_INTERVAL seconds
 
 enum StoplightColor {
 	StoplightRed,
@@ -28,6 +29,9 @@ RenderWindow window(VideoMode(DISTANCE_EDGE_MIDDLE*2*SCALING, LENGTH_CROSSWALK*1
 Font font;
 
 string tracefile;
+string currentline;
+stringstream tracestream;
+std::vector<std::string> &split(const std::string &s, char delim, std::vector<std::string> &elems);
 
 void setup();
 void render();
@@ -40,6 +44,7 @@ vector<float> carsLeftBound;
 vector<float> carsRightBound;
 StoplightColor currentColor = StoplightGreen;
 unsigned int currentTrace;
+float accumulatedTimeSinceLastUpdate;
 
 RectangleShape background, road, topUIBox, stoplightRect, walkRect;
 CircleShape cRed, cYellow, cGreen;
@@ -58,9 +63,11 @@ int main(int argc, const char *argv[]) {
 	stringstream buffer;
 	buffer << t.rdbuf();
 	tracefile = buffer.str();
+	tracestream << tracefile;
 	
 	// Setup
 	Clock clock;
+	accumulatedTimeSinceLastUpdate = 0;
 	if (!font.loadFromFile(resourcePath() + "HelveticaNeue.ttf")) return EXIT_FAILURE;
 	setup();
 	
@@ -88,7 +95,11 @@ int main(int argc, const char *argv[]) {
         window.clear();
 		
 		// Update the stuff
-		update(delta);
+		accumulatedTimeSinceLastUpdate += delta.asSeconds();
+		if (accumulatedTimeSinceLastUpdate > UPDATE_INTERVAL) {
+			accumulatedTimeSinceLastUpdate = 0;
+			update(delta);
+		}
 		
 		// Draw the stuff
 		render();
@@ -172,9 +183,23 @@ void update(Time delta) {
 	carsRightBound.clear();
 	currentTrace ++;
 	
-	// update vectors and get information from tracefile
+	// Get next line from trace file
+	string newcurrentline;
+	getline(tracestream, newcurrentline);
+	if (newcurrentline.size() > 0) currentline = newcurrentline;
 	
-	timeLabel.setString(to_string(1)+" s");
+	// Split line on colons
+	std::vector<string> vect;
+    split(currentline, ':', vect);
+	
+	currentTrace = stoi(vect[0]);
+	timeLabel.setString(vect[1]+" s");
+	if (vect[2] == "GREEN")
+		updateStoplightColor(StoplightGreen);
+	else if (vect[2] == "YELLOW")
+		updateStoplightColor(StoplightYellow);
+	else
+		updateStoplightColor(StoplightRed);
 }
 
 void render() {
@@ -207,7 +232,8 @@ void handleEvent(Event e) {
 void resetVis() {
 	std::cout << "\nResetting Visualization...";
 	
-	currentTrace = 0;
+	tracestream.str(tracefile);
+	tracestream.clear();
 }
 
 void updateStoplightColor(StoplightColor newcolor) {
@@ -233,4 +259,13 @@ void updateStoplightColor(StoplightColor newcolor) {
 			walkLabel.setColor(Color::White);
 			break;
 	}
+}
+
+std::vector<std::string> &split(const std::string &s, char delim, std::vector<std::string> &elems) {
+    std::stringstream ss(s);
+    std::string item;
+    while (std::getline(ss, item, delim)) {
+        elems.push_back(item);
+    }
+    return elems;
 }

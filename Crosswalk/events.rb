@@ -9,7 +9,7 @@ Event = Struct.new :type, :data
 class Simulation
   
   def output_trace ev
-    @trace_file.write "///#{@trace_number},#{@stoplight_state.to_s}\n"
+    @trace_file.write "#{@trace_number}:#{@t.round.to_s}:#{@stoplight_state.to_s}\n"
     @trace_number += 1
     
     # Queue next trace event
