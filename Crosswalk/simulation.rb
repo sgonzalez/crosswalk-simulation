@@ -26,6 +26,8 @@ MPH_FTPS = 1.46667
 STREAM_PEOPLE = 1
 STREAM_CARS = 2
 
+TRACE_PERIOD = 1 # how often to write to trace file in seconds
+
 class Simulation
 	  
 	def initialize( experiment, time, seed, trace )
@@ -39,7 +41,9 @@ class Simulation
 
     # Setup I/O
     @log_file = File.open("acwait.dat", "w")
-#    @trace_file = File.open("trace.dat", "w")
+    @trace_file = File.open(trace, "w")
+    @trace_number = 0
+    @trace_fire_yet = false
     
     # State
     @people = []
@@ -57,12 +61,16 @@ class Simulation
 
   	while @eventlist.size != 0 do
 
-      # trace file stuff
+      # Create first trace event when first event happens
+      if @trace_fire_yet == false
+        output_trace nil
+        @trace_fire_yet = true
+      end
 
   		ev = next_event
   		if ev then method(ev.type).call(ev) end
       
-      if @people == [] && @cars == [] then break end
+      if @people == [] && @cars == [] && ev.type != :output_trace then break end
 
   	end
   	
@@ -74,7 +82,7 @@ class Simulation
   	end
 
   	@log_file.close
-#  	@trace_file.close
+    @trace_file.close
 
     puts ""
     puts "OUTPUT num_pedestrians       #{@wlf_person_waits.get_count}"

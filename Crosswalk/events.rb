@@ -8,6 +8,15 @@ Event = Struct.new :type, :data
 
 class Simulation
   
+  def output_trace ev
+    @trace_file.write "|||#{@trace_number}|||\n"
+    @trace_number += 1
+    
+    # Queue next trace event
+    queue_event @t+TRACE_PERIOD, Event.new(:output_trace, {})
+  end
+  
+  
   def spawn_car ev, direction=false
     # Queue up new car
     if @t < @run_time

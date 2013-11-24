@@ -6,7 +6,7 @@
 
 require_relative "simulation"
 
-unless ARGV.length == 3
+unless ARGV.length == 8
   puts "Usage: SIM N TIME SEED PEDARRIVAL AUTOARRIVAL PEDRATE AUTORATE TRACE"
   exit 1
 end

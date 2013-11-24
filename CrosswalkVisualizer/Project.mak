@@ -2,10 +2,10 @@
 # goal is to build an object file from each C/C++ file, then link these
 # into a single executable file named 'foo'.
 
-TARGET_APP=SIM
-SIM: main.o ResourcesHelper.o
+TARGET_APP=VIS
+VIS: main.o ResourcesHelper.o VisEngine.o
 # or...
-SIM: $(patsubst %.cxx,%.o,$(wildcard *.cxx))
+VIS: $(patsubst %.cxx,%.o,$(wildcard *.cxx))
 
 # Makefile automatically derives a variable named OBJECTS from existing C/C++
 # file in the current directory.  You cannot, however, use this variable in
