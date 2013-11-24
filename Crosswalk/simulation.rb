@@ -26,7 +26,7 @@ MPH_FTPS = 1.46667
 STREAM_PEOPLE = 1
 STREAM_CARS = 2
 
-TRACE_PERIOD = 0.5 # how often to write to trace file in seconds
+TRACE_PERIOD = 1 # how often to write to trace file in seconds
 
 class Simulation
 	  

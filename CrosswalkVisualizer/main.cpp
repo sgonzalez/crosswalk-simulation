@@ -28,16 +28,19 @@ enum StoplightColor {
 RenderWindow window(VideoMode(DISTANCE_EDGE_MIDDLE*2*SCALING, LENGTH_CROSSWALK*14*SCALING), "Santiago and Matt's Crosswalk Visualizer");
 Font font;
 
+// Trace file
 string tracefile;
 string currentline;
 stringstream tracestream;
 std::vector<std::string> &split(const std::string &s, char delim, std::vector<std::string> &elems);
 
+// Game loop
 void setup();
 void render();
 void update(Time delta);
 void handleEvent(Event e);
 
+// Visualization state
 void resetVis();
 void updateStoplightColor(StoplightColor newcolor);
 vector<float> carsLeftBound;
@@ -46,11 +49,13 @@ StoplightColor currentColor = StoplightGreen;
 unsigned int currentTrace;
 float accumulatedTimeSinceLastUpdate;
 
+// UI elements
 RectangleShape background, road, topUIBox, stoplightRect, walkRect;
 CircleShape cRed, cYellow, cGreen;
-Text titleLabel, infoLabel, timeLabel, walkLabel;
+Text titleLabel, infoLabel, timeLabel, walkLabel, carCountLabel, pedCountLabel;
 vector<RectangleShape> crosswalkLines;
 vector<RectangleShape> residentialBlocks;
+
 
 int main(int argc, const char *argv[]) {
 	// Load trace file
@@ -174,6 +179,14 @@ void setup() {
 	timeLabel.setPosition(window.getSize().x-150, 15);
 	timeLabel.setColor(Color::Black);
 	
+	pedCountLabel = Text("0 pedestrians", font, 15);
+	pedCountLabel.setPosition(window.getSize().x-300, 10);
+	pedCountLabel.setColor(Color::Black);
+	
+	carCountLabel = Text("0 automobiles", font, 15);
+	carCountLabel.setPosition(window.getSize().x-300, 30);
+	carCountLabel.setColor(Color::Black);
+	
 	
 	resetVis();
 }
@@ -189,11 +202,29 @@ void update(Time delta) {
 	if (newcurrentline.size() > 0) currentline = newcurrentline;
 	
 	// Split line on colons
-	std::vector<string> vect;
+	vector<string> vect;
     split(currentline, ':', vect);
 	
+	// Split car positions
+	vector<string> carPositionsLeft, carPositionsRight;
+	split(vect[3], ',', carPositionsLeft);
+	split(vect[4], ',', carPositionsRight);
+	// Convert car positions from strings to floats
+	carsLeftBound.clear();
+	carsRightBound.clear();
+	std::transform(carPositionsLeft.begin(), carPositionsLeft.end(), std::back_inserter(carsLeftBound), [](const std::string& str) { return std::stof(str); });
+	std::transform(carPositionsRight.begin(), carPositionsRight.end(), std::back_inserter(carsRightBound), [](const std::string& str) { return std::stof(str); });
+	
+	// Split pedestrian positions
+	vector<string> moveWaitingPedPositions, crossingPedPositions;
+	split(vect[5], ',', moveWaitingPedPositions);
+	split(vect[6], ',', crossingPedPositions);
+	
+	// Update relevant variables
 	currentTrace = stoi(vect[0]);
 	timeLabel.setString(vect[1]+" s");
+	carCountLabel.setString(to_string(carsLeftBound.size()+carsRightBound.size())+" automobiles");
+	pedCountLabel.setString("X pedestrians");
 	if (vect[2] == "GREEN")
 		updateStoplightColor(StoplightGreen);
 	else if (vect[2] == "YELLOW")
@@ -217,6 +248,28 @@ void render() {
 	window.draw(titleLabel);
 	window.draw(infoLabel);
 	window.draw(timeLabel);
+	window.draw(carCountLabel);
+	window.draw(pedCountLabel);
+	
+	// draw leftbound cars
+	for (std::vector<float>::iterator it = carsLeftBound.begin(); it != carsLeftBound.end(); ++it) {
+		float position = *it;
+		CircleShape cCar(5);
+		cCar.setOrigin(2.5, 2.5);
+		cCar.setPosition(position*SCALING, road.getPosition().y+road.getSize().y*1.0/5.0);
+		cCar.setFillColor(Color::Magenta);
+		window.draw(cCar);
+	}
+	
+	// draw rightbound cars
+	for (std::vector<float>::iterator it = carsRightBound.begin(); it != carsRightBound.end(); ++it) {
+		float position = *it;
+		CircleShape cCar(4);
+		cCar.setOrigin(2, 2);
+		cCar.setPosition(position*SCALING, road.getPosition().y+road.getSize().y*3.0/5.0);
+		cCar.setFillColor(Color::Cyan);
+		window.draw(cCar);
+	}
 }
 
 void handleEvent(Event e) {
@@ -232,8 +285,7 @@ void handleEvent(Event e) {
 void resetVis() {
 	std::cout << "\nResetting Visualization...";
 	
-	tracestream.str(tracefile);
-	tracestream.clear();
+	tracestream.seekg(0); // set cursor position to beginning of stringstream
 }
 
 void updateStoplightColor(StoplightColor newcolor) {

@@ -8,3 +8,10 @@ Lehmer 32b pRNG:
 Welford:
 - welford.rb (all)
 - Usage (search "wlf_person_waits" and "wlf_car_waits")
+
+
+Trace File Format:
+- Each line is one "tick"
+- The last four chunks are comma separated (no spaces)
+- Car positions are in ft from the left bound
+tracenumber:worldtime:stoplightstate:leftlanecarpositions:rightlanecarpositions:movingwaitingpedestrianpositions:crosswalkpedestrianpositions
