@@ -28,6 +28,8 @@ STREAM_CARS = 2
 
 TRACE_PERIOD = 1 # how often to write to trace file in seconds
 
+EPSILON = 0.1 # how often do we reevaluate the cars' strategy
+
 class Simulation
 	  
 	def initialize( experiment, time, seed, trace )

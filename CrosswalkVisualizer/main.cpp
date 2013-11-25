@@ -45,6 +45,7 @@ void resetVis();
 void updateStoplightColor(StoplightColor newcolor);
 vector<float> carsLeftBound;
 vector<float> carsRightBound;
+vector<float> pedestrianPositions;
 StoplightColor currentColor = StoplightGreen;
 unsigned int currentTrace;
 float accumulatedTimeSinceLastUpdate;
@@ -216,9 +217,9 @@ void update(Time delta) {
 	std::transform(carPositionsRight.begin(), carPositionsRight.end(), std::back_inserter(carsRightBound), [](const std::string& str) { return std::stof(str); });
 	
 	// Split pedestrian positions
-	vector<string> moveWaitingPedPositions, crossingPedPositions;
-	split(vect[5], ',', moveWaitingPedPositions);
-	split(vect[6], ',', crossingPedPositions);
+	vector<string> pedPositions;
+	split(vect[5], ',', pedPositions);
+	std::transform(pedPositions.begin(), pedPositions.end(), std::back_inserter(pedestrianPositions), [](const std::string& str) { return std::stof(str); });
 	
 	// Update relevant variables
 	currentTrace = stoi(vect[0]);
