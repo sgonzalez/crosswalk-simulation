@@ -18,9 +18,11 @@ export SHELL
 # In most cases CFLAGS can be provided to both your C and C++ compiler.
 #CCVERSION=-4.1
 # yes, this should be explicit because gmake has defaults we don't want
-CC=gcc${CCVERSION}
-CXX=g++${CCVERSION}
-LD=g++${CCVERSION}
+CC=clang
+#CXX=g++${CCVERSION}
+CXX=clang++
+#LD=g++${CCVERSION}
+LD=clang++
 AR?=ar
 # There are otherways to accomplish the below, but despite it's kludgyness, it
 # is more readable than having lots of ifeq() or ifneq() statements all over the 
@@ -31,11 +33,11 @@ AR?=ar
 ifneq (${RELEASE},)
 CPPFLAGS?=-DNDEBUG -D_GNU_SOURCE -D__USE_GNU
 CFLAGS?=-Wall -O2
-CXXFLAGS?=${CFLAGS}
+CXXFLAGS?=-std=c++11 ${CFLAGS}
 else
 CPPFLAGS?=-D_GNU_SOURCE -D__USE_GNU
 CFLAGS?=-Wall -g
-CXXFLAGS?=${CFLAGS}
+CXXFLAGS?=-std=c++11 ${CFLAGS}
 endif
 # End of the kludge
 
