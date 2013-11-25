@@ -5,7 +5,7 @@
 TARGET_APP=VIS
 VIS: main.o ResourcesHelper.o VisEngine.o
 # or...
-VIS: $(patsubst %.cxx,%.o,$(wildcard *.cxx))
+VIS: $(patsubst %.cpp,%.o,$(wildcard *.cpp))
 
 # Makefile automatically derives a variable named OBJECTS from existing C/C++
 # file in the current directory.  You cannot, however, use this variable in
