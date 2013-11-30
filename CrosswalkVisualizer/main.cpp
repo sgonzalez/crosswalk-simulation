@@ -17,7 +17,8 @@ using namespace std;
 #define LENGTH_CROSSWALK 46.0
 
 #define SCALING 0.5
-#define UPDATE_INTERVAL 0.01 // update every UPDATE_INTERVAL seconds
+
+float updateInterval = 0.01; // update every updateInterval seconds
 
 enum StoplightColor {
 	StoplightRed,
@@ -53,7 +54,7 @@ float accumulatedTimeSinceLastUpdate;
 // UI elements
 RectangleShape background, road, topUIBox, stoplightRect, walkRect;
 CircleShape cRed, cYellow, cGreen;
-Text titleLabel, infoLabel, timeLabel, walkLabel, carCountLabel, pedCountLabel;
+Text titleLabel, infoLabel, timeLabel, walkLabel, carCountLabel, pedCountLabel, speedLabel, speedLabelLabel;
 vector<RectangleShape> crosswalkLines;
 vector<RectangleShape> residentialBlocks;
 
@@ -102,7 +103,7 @@ int main(int argc, const char *argv[]) {
 		
 		// Update the stuff
 		accumulatedTimeSinceLastUpdate += delta.asSeconds();
-		if (accumulatedTimeSinceLastUpdate > UPDATE_INTERVAL) {
+		if (accumulatedTimeSinceLastUpdate > updateInterval) {
 			accumulatedTimeSinceLastUpdate = 0;
 			update(delta);
 		}
@@ -188,6 +189,15 @@ void setup() {
 	carCountLabel.setPosition(window.getSize().x-300, 30);
 	carCountLabel.setColor(Color::Black);
 	
+	speedLabel = Text("100", font, 20);
+	speedLabel.setPosition(370, 25);
+	speedLabel.setColor(Color::Black);
+	
+	speedLabelLabel = Text("Vis Speed ^/v", font, 15);
+	speedLabelLabel.setPosition(370, 10);
+	speedLabelLabel.setColor(Color::Black);
+	
+	speedLabel.setString(to_string((int)(1.0/updateInterval)));
 	
 	resetVis();
 }
@@ -251,6 +261,8 @@ void render() {
 	window.draw(timeLabel);
 	window.draw(carCountLabel);
 	window.draw(pedCountLabel);
+	window.draw(speedLabel);
+	window.draw(speedLabelLabel);
 	
 	// draw leftbound cars
 	for (std::vector<float>::iterator it = carsLeftBound.begin(); it != carsLeftBound.end(); ++it) {
@@ -274,8 +286,17 @@ void render() {
 }
 
 void handleEvent(Event e) {
-	if (e.type == Event::KeyPressed && e.key.code == Keyboard::R) {
-		resetVis();
+	if (e.type == Event::KeyPressed) {
+		if (e.key.code == Keyboard::R) {
+			resetVis();
+		} else if (e.key.code == Keyboard::Up) {
+			updateInterval -= 0.05;
+			updateInterval = (updateInterval < 0) ? 0.005: updateInterval;
+			speedLabel.setString(to_string((int)(1.0/updateInterval)));
+		} else if (e.key.code == Keyboard::Down) {
+			updateInterval += 0.05;
+			speedLabel.setString(to_string((int)(1.0/updateInterval)));
+		}
 	}
 }
 
