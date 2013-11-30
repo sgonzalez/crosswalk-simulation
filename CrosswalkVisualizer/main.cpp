@@ -18,7 +18,7 @@ using namespace std;
 
 #define SCALING 0.5
 
-float updateInterval = 0.01; // update every updateInterval seconds
+float updateInterval = 0.001; // update every updateInterval seconds
 
 enum StoplightColor {
 	StoplightRed,
@@ -229,13 +229,14 @@ void update(Time delta) {
 	// Split pedestrian positions
 	vector<string> pedPositions;
 	split(vect[5], ',', pedPositions);
+	pedestrianPositions.clear();
 	std::transform(pedPositions.begin(), pedPositions.end(), std::back_inserter(pedestrianPositions), [](const std::string& str) { return std::stof(str); });
 	
 	// Update relevant variables
 	currentTrace = stoi(vect[0]);
 	timeLabel.setString(vect[1]+" s");
 	carCountLabel.setString(to_string(carsLeftBound.size()+carsRightBound.size())+" automobiles");
-	pedCountLabel.setString("X pedestrians");
+	pedCountLabel.setString(to_string(pedestrianPositions.size())+" pedestrians");
 	if (vect[2] == "GREEN")
 		updateStoplightColor(StoplightGreen);
 	else if (vect[2] == "YELLOW")
@@ -269,7 +270,7 @@ void render() {
 		float position = *it;
 		CircleShape cCar(4);
 		cCar.setOrigin(2, 2);
-		cCar.setPosition(position*SCALING, road.getPosition().y+road.getSize().y*1.0/5.0);
+		cCar.setPosition(road.getSize().x-position*SCALING, road.getPosition().y+road.getSize().y*1.0/5.0);
 		cCar.setFillColor(Color::Magenta);
 		window.draw(cCar);
 	}
@@ -283,6 +284,16 @@ void render() {
 		cCar.setFillColor(Color::Cyan);
 		window.draw(cCar);
 	}
+	
+	// draw pedestrians
+	for (std::vector<float>::iterator it = pedestrianPositions.begin(); it != pedestrianPositions.end(); ++it) {
+		float position = *it;
+		CircleShape cPed(4);
+		cPed.setOrigin(2, 2);
+		cPed.setPosition(window.getSize().x/2, road.getPosition().y-DISTANCE_TO_CROSSWALK*SCALING+position*SCALING);
+		cPed.setFillColor(Color::Blue);
+		window.draw(cPed);
+	}
 }
 
 void handleEvent(Event e) {
@@ -290,11 +301,11 @@ void handleEvent(Event e) {
 		if (e.key.code == Keyboard::R) {
 			resetVis();
 		} else if (e.key.code == Keyboard::Up) {
-			updateInterval -= 0.05;
+			updateInterval -= 0.005;
 			updateInterval = (updateInterval < 0) ? 0.005: updateInterval;
 			speedLabel.setString(to_string((int)(1.0/updateInterval)));
 		} else if (e.key.code == Keyboard::Down) {
-			updateInterval += 0.05;
+			updateInterval += 0.005;
 			speedLabel.setString(to_string((int)(1.0/updateInterval)));
 		}
 	}
@@ -336,10 +347,11 @@ void updateStoplightColor(StoplightColor newcolor) {
 }
 
 std::vector<std::string> &split(const std::string &s, char delim, std::vector<std::string> &elems) {
-    std::stringstream ss(s);
+    std::istringstream ss(s);
     std::string item;
     while (std::getline(ss, item, delim)) {
         elems.push_back(item);
     }
     return elems;
 }
+

@@ -9,9 +9,34 @@ Event = Struct.new :type, :data
 class Simulation
   
   def output_trace ev
-    lcar_string = "10,400,497,230,680"
-    rcar_string = "1000,450,800,100"
-    ped_string = "0"
+    # left-lane car positions string
+    lcar_string = ""
+    @cars.each do |car|
+      if car.direction == true
+        lcar_string += "#{(car.position*MILES_FT).round.to_s},"
+      end
+    end
+    lcar_string = lcar_string[0..-2]
+    if lcar_string == "" then lcar_string = "-20000" end # prevents a weird malloc bug in the C++ Vis
+    
+    # right-lane car positions string
+    rcar_string = ""
+    @cars.each do |car|
+      if car.direction == false
+        rcar_string += "#{(car.position*MILES_FT).round.to_s},"
+      end
+    end
+    rcar_string = rcar_string[0..-2]
+    if rcar_string == "" then rcar_string = "-20000" end # prevents a weird malloc bug in the C++ Vis
+    
+    # people positions string
+    ped_string = ""
+    @people.each do |person|
+      ped_string += "#{person.position.round.to_s},"
+    end
+    ped_string = ped_string[0..-2]
+    if ped_string == "" then ped_string = "-20000" end # prevents a weird malloc bug in the C++ Vis
+    
     @trace_file.write "#{@trace_number}:#{@t.round.to_s}:#{@stoplight_state.to_s}:#{lcar_string}:#{rcar_string}:#{ped_string}\n"
     @trace_number += 1
     
@@ -20,11 +45,27 @@ class Simulation
   end
   
   
+  def reevaluate_positions ev
+    # Update car positions
+    reevaluate_car_strategies
+    
+    # Update people positions
+    @people.each do |person|
+      if !person.waiting
+        person.position += person.speed * EPSILON
+      end
+    end
+    
+    # Queue next trace event
+    queue_event @t+EPSILON, Event.new(:reevaluate_positions, {})
+  end
+  
+  
   def spawn_car ev, direction=false
     # Queue up new car
     if @t < @run_time
       when_t = @t+Exponential(MINUTE.to_f/4, @rands.get_random(STREAM_CARS))
-      car = Car.new(Uniform(25, 35, @rands.get_random(STREAM_CARS)), (ev) ? ev.data[:car].direction : direction, false)
+      car = Car.new(Uniform(25, 35, @rands.get_random(STREAM_CARS)), 0, Uniform(7, 12, @rands.get_random(STREAM_CARS)), (ev) ? ev.data[:car].direction : direction, false)
       event = Event.new(:spawn_car, {:car => car})
       queue_event when_t, event # spawn a new car every 1/4 of minute
     end
@@ -44,7 +85,7 @@ class Simulation
     # Queue up new person
     if @t < @run_time
       when_t = @t+Exponential(MINUTE.to_f/4, @rands.get_random(STREAM_PEOPLE))
-      person = Person.new(Uniform(6, 13, @rands.get_random(STREAM_PEOPLE)), false)
+      person = Person.new(Uniform(6, 13, @rands.get_random(STREAM_PEOPLE)), 0, false)
       event = Event.new(:spawn_person, {:person => person})
       queue_event when_t, event # spawn a new person every 1/4 of minute
     end

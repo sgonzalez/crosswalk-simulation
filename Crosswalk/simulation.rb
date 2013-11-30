@@ -21,12 +21,13 @@ TIME_RED = 12
 TIME_YELLOW = 8
 
 MINUTE = 60
+MILES_FT = 5280
 MPH_FTPS = 1.46667
 
 STREAM_PEOPLE = 1
 STREAM_CARS = 2
 
-TRACE_PERIOD = 1 # how often to write to trace file in seconds
+TRACE_PERIOD = 0.1 # how often to write to trace file in seconds
 
 EPSILON = 0.1 # how often do we reevaluate the cars' strategy
 
@@ -60,6 +61,7 @@ class Simulation
     spawn_car nil, true # create first car in direction 1
     spawn_car nil, false # create first car in direction 2
     spawn_person nil # create first person
+    reevaluate_positions nil # first car/pedestrian position reevaluation
 
   	while @eventlist.size != 0 do
 
@@ -72,7 +74,7 @@ class Simulation
   		ev = next_event
   		if ev then method(ev.type).call(ev) end
       
-      if @people == [] && @cars == [] && ev.type != :output_trace then break end
+      if @people == [] && @cars == [] && ev.type != :output_trace && ev.type != :reevaluate_positions then break end
 
   	end
   	
@@ -108,6 +110,11 @@ class Simulation
 	  ######################################################################
 	  ######################################################################
 	  ######################################################################
+	  @cars.each do |car|
+      if !car.waiting
+        car.position += car.speed * EPSILON / (MINUTE*MINUTE) # position is in miles
+      end
+    end
 	  ######################################################################
 	  ######################################################################
 	  ######################################################################

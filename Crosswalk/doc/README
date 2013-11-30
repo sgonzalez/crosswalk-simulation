@@ -1,6 +1,9 @@
 Santiago Gonzalez and Matt Buland
 Next Event Crosswalk Simulation
 
+How to Quickly Run
+- ./SIM C 100 1 x x x x trace.dat
+
 Lehmer 32b pRNG:
 - lehmers.rb (all)
 - Usage (search "rands")

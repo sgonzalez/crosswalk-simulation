@@ -4,4 +4,6 @@
 ## Santiago Gonzalez ##
 #######################
 
-Person = Struct.new(:speed, :waiting, :wait_start, :wait_finish)
+Person = Struct.new(:speed, :position, :waiting, :wait_start, :wait_finish)
+
+# NOTE: position is in feet
