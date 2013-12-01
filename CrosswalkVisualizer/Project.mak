@@ -3,7 +3,7 @@
 # into a single executable file named 'foo'.
 
 TARGET_APP=VIS
-VIS: main.o ResourcesHelper.o VisEngine.o
+VIS: main.o ResourcesHelper.o
 # or...
 VIS: $(patsubst %.cpp,%.o,$(wildcard *.cpp))
 
