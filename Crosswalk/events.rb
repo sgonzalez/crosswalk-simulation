@@ -62,10 +62,14 @@ class Simulation
   
   
   def spawn_car ev, direction=false
+    @carid ||= 0
     # Queue up new car
     if @t < @run_time
       when_t = @t+Exponential(MINUTE.to_f/4, @rands.get_random(STREAM_CARS))
-      car = Car.new(Uniform(25, 35, @rands.get_random(STREAM_CARS)), 0, Uniform(7, 12, @rands.get_random(STREAM_CARS)), (ev) ? ev.data[:car].direction : direction, false)
+      car = Car.new(Uniform(25, 35, @rands.get_random(STREAM_CARS)), 0, Uniform(7, 12, @rands.get_random(STREAM_CARS)), (ev) ? ev.data[:car].direction : direction, false, @carid)
+      @carid += 1
+      car.current_speed = car.speed
+      car.current_acceleration = 0 # stay at a constant speed
       event = Event.new(:spawn_car, {:car => car})
       queue_event when_t, event # spawn a new car every 1/4 of minute
     end
@@ -104,19 +108,21 @@ class Simulation
   
   
   def car_crosswalk_intersection ev
-    print_time
-    puts "Car #{direction_arrow_for_car ev.data[:car]} arrived at \x1b[33mstoplight\x1b[0m"
-    
-    ev.data[:car].waiting = true
-    ev.data[:car].wait_start = @t
-    
-    if @stoplight_state == :GREEN
-      ev.data[:car].waiting = false
-      ev.data[:car].wait_finish = @t
-      add_wait_point_for_car ev.data[:car]
-      # Queue finished event
-      queue_event @t+(DISTANCE_EDGE_MIDDLE+WIDTH_CROSSWALK/2)*MPH_FTPS/ev.data[:car].speed, Event.new(:car_finished, {:car => ev.data[:car]})
-    end
+    # With the way accelaration, and the non-collisions of cars, this event is now to be unused
+
+    # print_time
+    # puts "Car #{direction_arrow_for_car ev.data[:car]} arrived at \x1b[33mstoplight\x1b[0m"
+    # 
+    # ev.data[:car].waiting = true
+    # ev.data[:car].wait_start = @t
+    # 
+    # if @stoplight_state == :GREEN
+    #   ev.data[:car].waiting = false
+    #   ev.data[:car].wait_finish = @t
+    #   add_wait_point_for_car ev.data[:car]
+    #   # Queue finished event
+    #   queue_event @t+(DISTANCE_EDGE_MIDDLE+WIDTH_CROSSWALK/2)*MPH_FTPS/ev.data[:car].speed, Event.new(:car_finished, {:car => ev.data[:car]})
+    # end
   end
   
   def person_crosswalk_intersection ev
@@ -158,7 +164,7 @@ class Simulation
   
   def car_finished ev
     print_time
-    puts "Car #{direction_arrow_for_car ev.data[:car]} \x1b[31mfinished\x1b[0m"
+    puts "Car ##{ev.data[:car].uid} #{direction_arrow_for_car ev.data[:car]} \x1b[31mfinished\x1b[0m"
     
     @cars.delete ev.data[:car]
   end
@@ -211,9 +217,10 @@ class Simulation
     waiting_cars.each do |car|
       car.waiting = false
       car.wait_finish = @t
-      add_wait_point_for_car car
+      # add_wait_point_for_car car
       # Queue finished event
-      queue_event @t+(DISTANCE_EDGE_MIDDLE+WIDTH_CROSSWALK/2)*MPH_FTPS/car.speed, Event.new(:car_finished, {:car => car})
+      # This is unecessary now that we have time-dependent cars
+      # queue_event @t+(DISTANCE_EDGE_MIDDLE+WIDTH_CROSSWALK/2)*MPH_FTPS/car.speed, Event.new(:car_finished, {:car => car})
     end
   end
   
