@@ -9,6 +9,9 @@ Event = Struct.new :type, :data
 class Simulation
   
   def output_trace ev
+    # update pedestrian and automobile positions
+    reevaluate_positions
+    
     # left-lane car positions string
     lcar_string = ""
     @cars.each do |car|
@@ -44,21 +47,6 @@ class Simulation
     queue_event @t+TRACE_PERIOD, Event.new(:output_trace, {})
   end
   
-  
-  def reevaluate_positions ev
-    # Update car positions
-    reevaluate_car_strategies
-    
-    # Update people positions
-    @people.each do |person|
-      if !person.waiting
-        person.position += person.speed * EPSILON
-      end
-    end
-    
-    # Queue next trace event
-    queue_event @t+EPSILON, Event.new(:reevaluate_positions, {})
-  end
   
   
   def spawn_car ev, direction=false

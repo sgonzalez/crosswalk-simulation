@@ -29,8 +29,6 @@ STREAM_CARS = 2
 
 TRACE_PERIOD = 0.1 # how often to write to trace file in seconds
 
-EPSILON = 0.1 # how often do we reevaluate the cars' strategy
-
 class Simulation
 	  
 	def initialize( experiment, time, seed, trace )
@@ -61,7 +59,6 @@ class Simulation
     spawn_car nil, true # create first car in direction 1
     spawn_car nil, false # create first car in direction 2
     spawn_person nil # create first person
-    reevaluate_positions nil # first car/pedestrian position reevaluation
 
   	while @eventlist.size != 0 do
 
@@ -101,6 +98,27 @@ class Simulation
 	# # # # # # # # # #
 	# Utility functions
 	
+	def reevaluate_positions
+	  ############################
+	  # for now reevaluate strategies each time, since it is not next event yet ;-) A silly workaround
+	  ############################
+	  reevaluate_car_strategies
+	  ############################
+	  
+	  # Update car positions
+	  ################
+	  ################
+	  ################
+	  ################
+    
+    # Update people positions
+    @people.each do |person|
+      if !person.waiting
+        person.position += person.speed * TRACE_PERIOD
+      end
+    end
+	end
+  
   # Naive strategies 1: Ignore acceleration. Either go or don't go
 	def reevaluate_car_strategies
     # puts "Evaluating strategies. Current time is #{@t}"
@@ -126,11 +144,11 @@ class Simulation
 
       # Move the car first to calculate is current position
       if !car.waiting
-        car.position += car.current_speed * EPSILON / (MINUTE*MINUTE) # position is in miles
+        car.position += car.current_speed * TRACE_PERIOD / (MINUTE*MINUTE) # position is in miles
       end
 
       # Re-evaluate the speed to be taken
-      if car.position*MILES_FT <= DISTANCE_EDGE_MIDDLE - DISTANCE_TO_CROSSWALK/2 and car.position*MILES_FT > DISTANCE_EDGE_MIDDLE - DISTANCE_TO_CROSSWALK/2 - car.speed * MPH_FTPS * EPSILON
+      if car.position*MILES_FT <= DISTANCE_EDGE_MIDDLE - DISTANCE_TO_CROSSWALK/2 and car.position*MILES_FT > DISTANCE_EDGE_MIDDLE - DISTANCE_TO_CROSSWALK/2 - car.speed * MPH_FTPS * TRACE_PERIOD
         puts "Car #{car.uid} is near the stoplight. It's at position #{car.position*MILES_FT}. Stoplight is #{@stoplight_state}"
         if @stoplight_state == :GREEN
           # We're good to go forth
@@ -163,7 +181,7 @@ class Simulation
           car_bubble = 40
           brake_distance = 0
           # if where i will wind up (including the evolution of what my speed could be) is going to wind up inside (or after) the car in front's bubble, then stop
-          if car.position*MILES_FT + brake_distance + car.speed*MPH_FTPS*EPSILON >= ahead.position*MILES_FT - car_bubble
+          if car.position*MILES_FT + brake_distance + car.speed*MPH_FTPS*TRACE_PERIOD >= ahead.position*MILES_FT - car_bubble
             car.waiting = true
             car.current_speed = 0
           else
