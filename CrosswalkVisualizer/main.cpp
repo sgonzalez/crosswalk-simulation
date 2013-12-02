@@ -209,7 +209,7 @@ void update(Time delta) {
 	
 	// Get next line from trace file
 	string newcurrentline;
-	getline(tracestream, newcurrentline);
+	if (!tracestream.eof()) getline(tracestream, newcurrentline);
 	if (newcurrentline.size() > 0) currentline = newcurrentline;
 	
 	// Split line on colons
@@ -318,7 +318,9 @@ void handleEvent(Event e) {
 void resetVis() {
 	std::cout << "\nResetting Visualization...";
 	
-	tracestream.seekg(0); // set cursor position to beginning of stringstream
+	// set cursor position to beginning of stringstream
+	tracestream.clear();
+	tracestream.seekg(0, ios::beg);
 }
 
 void updateStoplightColor(StoplightColor newcolor) {
