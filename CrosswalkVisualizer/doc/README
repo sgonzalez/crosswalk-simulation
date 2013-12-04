@@ -1,5 +1,9 @@
 Santiago Gonzalez and Matt Buland
 Next Event Crosswalk Simulation Visualizer
 
+Graphics Library Installation:
+http://www.sfml-dev.org
+sudo apt-get install libsfml-dev
+
 Extra Features:
 - Speed change in the visualizer using up/down arrows
