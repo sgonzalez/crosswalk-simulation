@@ -258,10 +258,20 @@ class Simulation
     end
     nearest_pts << 2*DISTANCE_EDGE_MIDDLE
 
-    recalculate_braking_distances choices, car
 
     # The closest re-evaluation will be the minimum of the breaking-point, the stoplight breaking-point, and the end
     ahead_critical_pos = choices.min
+
+    # We need to know if we need to apply braking distances. If the end was chosen (last), then we'll say we do NOT need to. Otherwise, no
+    apply_braking = true
+    if ahead_critical_pos == choices[-1]
+      apply_braking = false
+    end
+
+    if apply_braking
+      ahead_critical_pos = recalculate_braking_distance ahead_critical_pos, car
+    end
+
 
 
     # Calculate where we should next reevaluate our strategy
@@ -270,30 +280,35 @@ class Simulation
     # Then re-evaluate our final position (essentially evaluate an integral. Ick)
   end
 
-  def recalculate_braking_distances choices, car
+  def recalculate_braking_distance stop_point, car
     current_pos = calculate_current_position @t, car
 
     # Calculation of possible braking distances
-    # Triangle area from top speed to 0 speed over the time to go from top speed to 0
+    # Distance to stop from full-speed
     full_brake_dist = car.speed * (car.speed / car.acceleration) / 2
+    # Time to accelerate from current speed to top speed
     time_to_full_speed = (car.speed - car.current_speed) / car.acceleration
+    # Distance to accelerate to top speed
     full_accel_dist = (car.current_speed * time_to_full_speed) + ( (car.speed - car.current_speed) * time_to_full_speed / 2 )
 
     # Perform braking-distance modifications to the first and maybe the second, but not the last
     if car.current_speed == car.speed
-      # We can predict that we won't accelerate. Now we can use the braking distance with full deceleration
+      # We can't accelerate, so we'll eventually stop from full-speed
+      return stop_point - full_brake_dist
+    elsif current_pos < stop_point - full_brake_dist - full_accel_dist
+      # We have space to accelerate to full-speed
+      return stop_point - full_brake_dist
     else
-      # Schedule acceleration to full speed
-      car.position += full_accel_dist
-      car.current_speed = car.speed
-      car.current_acceleration = car.acceleration
-
-      queue_event @t + time_to_full_speed, Event.new(:car_reevaluate_strategy, {:car => car})
+      # We don't have time to fully accelerate, and we're not going at full speed
     end
+    # TODO: Continue after here
 
+      # We can predict that we won't accelerate. Now we can use the braking distance with full deceleration from current speed
+      brake_currspeed_dist = car.current_speed * car.current_speed / car.acceleration / 2
 
       if car.position == ahead_car_pos
         # Then we can't go forth anymore. Just... wait... until there's a reevaluate_all interjection
+        # We let this function fall through without modifications. The next step (event scheduling) will find the same thing, and operate accordingly
         return
       elsif car.position + full_accel_dist + full_brake_dist <= ahead_car_pos
         # we have time to fully accelerate before getting to the start of braking
