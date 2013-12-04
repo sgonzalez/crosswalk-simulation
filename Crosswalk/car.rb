@@ -4,6 +4,21 @@
 ## Santiago Gonzalez ##
 #######################
 
-Car = Struct.new(:speed, :position, :acceleration, :direction, :waiting, :uid, :wait_start, :wait_finish, :current_speed, :current_acceleration, :at_stoplight)
+Car = Struct.new(
+  # Suggested to be required
+  :speed,
+  :position,  # NOTE: position is in miles
+  :acceleration,
+  :direction,
+  :waiting,
+  :uid,
+  :old_pos,
+  :old_t,
+  # Suggested Optional (not used immediately)
+  :wait_start,
+  :wait_finish,
+  :current_speed,
+  :current_acceleration,
+  :at_stoplight
+)
 
-# NOTE: position is in miles

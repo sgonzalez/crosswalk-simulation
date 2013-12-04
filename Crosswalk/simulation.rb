@@ -17,6 +17,8 @@ DISTANCE_TO_CROSSWALK = 165 # distance person has to walk to get to the crosswal
 WIDTH_CROSSWALK = 24
 LENGTH_CROSSWALK = 46
 
+STOP_AT_LIGHT = DISTANCE_EDGE_MIDDLE - WIDTH_CROSSWALK/2 # position where cars are to stop for the light
+
 TIME_RED = 12
 TIME_YELLOW = 8
 
@@ -101,7 +103,55 @@ class Simulation
 	# # # # # # # # # #
 	# Utility functions
 	
-  # Naive strategies 1: Ignore acceleration. Either go or don't go
+	def reevaluate_positions
+
+    # Update people positions
+    @people.each do |person|
+      if !person.waiting
+        person.position += person.speed * TRACE_PERIOD
+      end
+    end
+	
+	  # Find the current positions of the cars
+    poses = [[],[]]
+    # The car-position must be independent of the positions used by the strategies
+    @cars.each do |car|
+      # car.position (used by strats) It represents the position when the event occurs. This should be in the future
+      # car.speed (used by strats) It's the speed of the car after the time has passed (when the event occurs)
+      #
+      # car.old_pos
+      # car.old_t
+      # These are used to state where the car USED to be when it changed its strategy last
+      #
+      # We can calculate the car's current position based on where it used to be, when it used to be there, how fast it's accelerating, and how fast it WILL be going
+      curr_pos = calculate_current_position @t, car
+      if car.direction
+        poses[0] << curr_pos
+      else
+        poses[1] << curr_pos
+      end
+    end
+
+    # left-lane car positions string
+    lcar_string = ""
+    poses[0].each do |cpos|
+      lcar_string += "#{car.position.round},"
+    end
+    lcar_string = lcar_string[0..-2]
+    if lcar_string == "" then lcar_string = "-20000" end # prevents a weird malloc bug in the C++ Vis
+
+    # right-lane car positions string
+    rcar_string = ""
+    poses[1].each do |cpos|
+      rcar_string += "#{car.position.round},"
+    end
+    rcar_string = rcar_string[0..-2]
+    if rcar_string == "" then rcar_string = "-20000" end # prevents a weird malloc bug in the C++ Vis
+	end
+
+=begin
+  # BAD time-based evaluation
+  # Naive strategies 1: Ignore acceleration. Either full speed or no speed
 	def reevaluate_car_strategies
     # puts "Evaluating strategies. Current time is #{@t}"
 
@@ -191,6 +241,7 @@ class Simulation
       end
     end
 	end
+=end
 
   # Gets the car ahead of the specified car from the @cars list
   def get_car_ahead c
@@ -246,4 +297,26 @@ class Simulation
 	  wait = p.wait_finish - p.wait_start
 	  @wlf_person_waits.add_point wait
 	end
+
+  def strip_car_reevals car
+    @eventlist = @eventlist.select { |e| ! ( e.type == :car_reevaluate_strategy and e.data[:car] == car) }
+  end
+
+  def calculate_current_position time, car
+    # start at where it used to be
+    current_pos = car.old_pos
+
+    # perform the evolution from car.old_t to time
+    if car.current_acceleration == 0
+      current_pos += (time - car.old_t)*car.current_speed
+    else
+      # Either accelerating or decelerating
+      old_speed = car.current_speed - (time - car.old_t)*car.current_acceleration
+      # Integral under the speed-square
+      current_pos += (time - car.old_t) * [car.current_speed, old_speed].min
+
+      # Integral under the upper speed-triangle
+      current_pos += (time - car.old_t) * ( [car.current_speed, old_speed].max - [car.current_speed, old_speed].min ) / 2
+    end
+  end
 end

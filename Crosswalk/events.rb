@@ -2,6 +2,8 @@
 
 #######################
 ## Santiago Gonzalez ##
+## With help from    ##
+## Matt Buland       ##
 #######################
 
 Event = Struct.new :type, :data
@@ -9,25 +11,8 @@ Event = Struct.new :type, :data
 class Simulation
   
   def output_trace ev
-    # left-lane car positions string
-    lcar_string = ""
-    @cars.each do |car|
-      if car.direction == true
-        lcar_string += "#{(car.position*MILES_FT).round.to_s},"
-      end
-    end
-    lcar_string = lcar_string[0..-2]
-    if lcar_string == "" then lcar_string = "-20000" end # prevents a weird malloc bug in the C++ Vis
-    
-    # right-lane car positions string
-    rcar_string = ""
-    @cars.each do |car|
-      if car.direction == false
-        rcar_string += "#{(car.position*MILES_FT).round.to_s},"
-      end
-    end
-    rcar_string = rcar_string[0..-2]
-    if rcar_string == "" then rcar_string = "-20000" end # prevents a weird malloc bug in the C++ Vis
+    # update pedestrian and automobile positions
+    car_strings = reevaluate_positions
     
     # people positions string
     ped_string = ""
@@ -212,16 +197,132 @@ class Simulation
     puts "Light turned \x1b[1;32mGREEN\x1b[0m"
     @stoplight_state = :GREEN
     @last_transition_to_green = @t
-    
-    waiting_cars = @cars.select { |c| c.waiting == true }
-    waiting_cars.each do |car|
-      car.waiting = false
-      car.wait_finish = @t
-      # add_wait_point_for_car car
-      # Queue finished event
-      # This is unecessary now that we have time-dependent cars
-      # queue_event @t+(DISTANCE_EDGE_MIDDLE+WIDTH_CROSSWALK/2)*MPH_FTPS/car.speed, Event.new(:car_finished, {:car => car})
+
+    # instantaneously change all the waiting cars strategies
+    reevaluate_all_car_strats()
+    # queue_event @t+(DISTANCE_EDGE_MIDDLE+WIDTH_CROSSWALK/2)*MPH_FTPS/car.speed, Event.new(:car_finished, {:car => car})
+  end
+
+  # Meant to be called instantaneously (on emergency basically)
+  def reevaluate_all_car_strats
+    # separation of left and right allows for easier short-circuiting the re-evaluations
+    lefts = @cars.select { |c| c.direction == false }
+    rights = @cars.select { |c| c.direction == true }
+    reeval_carlist lefts
+    reeval_carlist rights
+  end
+
+  def reeval_carlist cars
+    cars.each do |car|
+      # Evaluate the current position
+      current_pos = calculate_current_position @t, car
+
+      if current_pos > STOP_AT_LIGHT
+        # Skip cars that won't change because of the light. TODO: Assume that the only reason this function is called is because the light changed
+        # This also bodes well with the short-circuiting
+        next
+      end
+
+      # Strip out re-evaluations of this car
+      strip_car_reevals car
+
+      start_strat = car.strategy
+      car_reevaluate_strategy Event.new(:car_reevaluate_strategy, {:car => car})
+      end_strat = car.strategy
+      if start_strat == end_strat
+        # Stop re-evaluating when a car does not change strategy
+        break
+      end
     end
   end
-  
+
+  def car_reevaluate_strategy ev
+    # Check the current surroundings to evaluate what to do next
+    car = ev.data[:car]
+
+    ahead_car = get_car_ahead car
+
+    # We have to do an evaluation of the position of that ahead-car, since we don't store inter-mediate positions
+    # Save the ahead car's position. we may need it later
+    choices = []
+    ahead_car_pos = get_instantaneous_position ahead_car
+
+    if !ahead_car_pos.nil?
+      # Subtract the buffer behind the car (follow dist)
+      ahead_car_pos -= 20
+
+      choices <<  ahead_car_pos
+    end
+    if @stoplight_state == :GREEN
+      nearest_pts << STOP_AT_LIGHT
+    end
+    nearest_pts << 2*DISTANCE_EDGE_MIDDLE
+
+    recalculate_braking_distances choices, car
+
+    # The closest re-evaluation will be the minimum of the breaking-point, the stoplight breaking-point, and the end
+    ahead_critical_pos = choices.min
+
+
+    # Calculate where we should next reevaluate our strategy
+    # Change our acceleration first
+    # Then re-evaluate our final speed
+    # Then re-evaluate our final position (essentially evaluate an integral. Ick)
+  end
+
+  def recalculate_braking_distances choices, car
+    current_pos = calculate_current_position @t, car
+
+    # Calculation of possible braking distances
+    # Triangle area from top speed to 0 speed over the time to go from top speed to 0
+    full_brake_dist = car.speed * (car.speed / car.acceleration) / 2
+    time_to_full_speed = (car.speed - car.current_speed) / car.acceleration
+    full_accel_dist = (car.current_speed * time_to_full_speed) + ( (car.speed - car.current_speed) * time_to_full_speed / 2 )
+
+    # Perform braking-distance modifications to the first and maybe the second, but not the last
+    if car.current_speed == car.speed
+      # We can predict that we won't accelerate. Now we can use the braking distance with full deceleration
+    else
+      # Schedule acceleration to full speed
+      car.position += full_accel_dist
+      car.current_speed = car.speed
+      car.current_acceleration = car.acceleration
+
+      queue_event @t + time_to_full_speed, Event.new(:car_reevaluate_strategy, {:car => car})
+    end
+
+
+      if car.position == ahead_car_pos
+        # Then we can't go forth anymore. Just... wait... until there's a reevaluate_all interjection
+        return
+      elsif car.position + full_accel_dist + full_brake_dist <= ahead_car_pos
+        # we have time to fully accelerate before getting to the start of braking
+          # If we're already travelling at full speed, check when we should re-evaluate braking
+          ahead_car_pos -= full_brake_dist
+      else
+        # We don't have time to full accelerate. Partial acceleration? Stay at constant speed?
+        # TODO: Let's say that we stay at current speed until the braking point
+      end
+      #
+      # If we are NOT outside that range, then we need to do the following
+      # TODO: How is this calculated?
+      # Find the point where speed evolution meets the braking distance
+      # Maximum deceleration = -car.acceleration
+      # time to go from speed to 0 = speed / acceleration
+      #
+      # Braking distance is the triangle-area going from start speed to 0
+      # braking distance = entrance_speed * (entrance_speed / acceleration) / 2
+      #
+      # Now, what is the entrance_speed???
+      # t is the time from now until we start braking
+      # evaluate using an unknown t: (current_speed + t*acceleration) = entrance_speed
+      # braking distance = (current_speed + t*acceleration)**2 / acceleration / 2
+      #
+      # In finding t...
+      # t >= 0
+      # ....
+      #
+      # Intersection between two position curves?
+
+  end
 end
