@@ -26,10 +26,7 @@ MINUTE = 60
 MILES_FT = 5280
 
 # MPH -> FPS
-MPH_FTPS = 5280 / 3600
-
-# Miles per hour squared -> Feet per second squared
-MPHH_FTPSS = 5280 / 3600 / 3600
+MPH_FTPS = 5280.0 / 3600.0
 
 STREAM_PEOPLE = 1
 STREAM_CARS = 2
@@ -219,7 +216,7 @@ class Simulation
     current_pos = car.old_pos*MILES_FT
     # Definitely need to convert this to FPS
     curr_speed = car.current_speed * MPH_FTPS
-    curr_accel = car.current_acceleration * MPHH_FTPSS
+    curr_accel = car.current_acceleration
 
     # perform the evolution from car.old_t to time
     if curr_accel == 0

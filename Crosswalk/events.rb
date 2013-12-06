@@ -294,9 +294,9 @@ class Simulation
     end
 
     curr_speed = car.current_speed * MPH_FTPS
-    curr_accel = car.current_acceleration * MPHH_FTPSS
+    curr_accel = car.current_acceleration
     max_speed = car.speed * MPH_FTPS
-    max_accel = car.acceleration * MPHH_FTPSS
+    max_accel = car.acceleration
 
     # Calculation of possible braking distances
     # Distance to stop from full-speed
@@ -347,7 +347,7 @@ class Simulation
         return nil
       end
     elsif current_pos > stop_point - brake_currspeed_dist
-      puts "Car #{car.uid} doesn't have enough room to stop. Currently at #{current_pos}. Need to stop at #{stop_point}. Braking distance: #{brake_currspeed_dist}"
+      puts "Car #{car.uid} doesn't have enough room to stop. Currently at #{current_pos}. Need to stop at #{stop_point}. Braking distance: #{brake_currspeed_dist}. Currently traveling at #{curr_speed}fps. Max acceleraiton is #{max_accel}"
       puts "This should be a simulation impossibility. BREAK."
       exit -1
     else
@@ -385,13 +385,14 @@ class Simulation
   # new Position is in FEET
   # new speed is in FPS
   # new acceleration is in FEET / S**2
+  #   Acceleration is STORED in FPS aswell
   def car_transition car, newpos, newspeed, newaccel
     car.old_pos = car.position
     car.old_t = @t
 
     car.position = newpos/MILES_FT
     car.current_speed = newspeed/MPH_FTPS
-    car.current_acceleration = newaccel/MPHH_FTPSS
+    car.current_acceleration = newaccel
 
     return car
   end
