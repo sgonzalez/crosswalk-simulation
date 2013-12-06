@@ -30,21 +30,6 @@ class Simulation
   end
   
   
-  def reevaluate_positions ev
-    # Update car positions
-    reevaluate_car_strategies
-    
-    # Update people positions
-    @people.each do |person|
-      if !person.waiting
-        person.position += person.speed * EPSILON
-      end
-    end
-    
-    # Queue next trace event
-    queue_event @t+EPSILON, Event.new(:reevaluate_positions, {})
-  end
-  
   
   def spawn_car ev, direction=false
     @carid ||= 0
