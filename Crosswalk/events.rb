@@ -22,7 +22,7 @@ class Simulation
     ped_string = ped_string[0..-2]
     if ped_string == "" then ped_string = "-20000" end # prevents a weird malloc bug in the C++ Vis
     
-    @trace_file.write "#{@trace_number}:#{@t.round.to_s}:#{@stoplight_state.to_s}:#{lcar_string}:#{rcar_string}:#{ped_string}\n"
+    @trace_file.write "#{@trace_number}:#{@t.round.to_s}:#{@stoplight_state.to_s}:#{car_strings}:#{ped_string}\n"
     @trace_number += 1
     
     # Queue next trace event
@@ -36,7 +36,17 @@ class Simulation
     # Queue up new car
     if @t < @run_time
       when_t = @t+Exponential(MINUTE.to_f/4, @rands.get_random(STREAM_CARS))
-      car = Car.new(Uniform(25, 35, @rands.get_random(STREAM_CARS)), 0, Uniform(7, 12, @rands.get_random(STREAM_CARS)), (ev) ? ev.data[:car].direction : direction, false, @carid)
+      car = Car.new(
+        Uniform(25, 35, @rands.get_random(STREAM_CARS)),    # Speed
+        0,                                                  # Position is initialized to 0
+        Uniform(7, 12, @rands.get_random(STREAM_CARS)),     # Acceleration
+        (ev) ? ev.data[:car].direction : direction,         # Direction
+        false,                                              # Waiting
+        @carid,                                             # UID: Unique identifier
+        0,                                                  # Old position (same place as current position)
+        when_t                                              # Old time: NOW
+      )
+
       @carid += 1
       car.current_speed = car.speed
       car.current_acceleration = 0 # stay at a constant speed
@@ -51,7 +61,9 @@ class Simulation
       puts "New \x1b[37mCAR\x1b[0m #{direction_arrow_for_car ev.data[:car]} w/ speed: #{"%0.4f" % ev.data[:car].speed}"
       
       # Queue intersection event
-      queue_event @t+(DISTANCE_EDGE_MIDDLE-WIDTH_CROSSWALK/2)/MPH_FTPS/ev.data[:car].speed, Event.new(:car_crosswalk_intersection, {:car => ev.data[:car]})
+      # queue_event @t+(DISTANCE_EDGE_MIDDLE-WIDTH_CROSSWALK/2)/MPH_FTPS/ev.data[:car].speed, Event.new(:car_crosswalk_intersection, {:car => ev.data[:car]})
+      # Tell the car to immediately evaluate its strategy
+      car_reevaluate_strategy Event.new(:car_reevaluate_strategy, {:car => ev.data[:car]})
     end
   end
   
@@ -224,19 +236,24 @@ class Simulation
   def car_reevaluate_strategy ev
     # Check the current surroundings to evaluate what to do next
     car = ev.data[:car]
+    puts "Evaluating the strategy of car #{car.uid}"
 
     ahead_car = get_car_ahead car
 
     # We have to do an evaluation of the position of that ahead-car, since we don't store inter-mediate positions
     # Save the ahead car's position. we may need it later
-    choices = []
-    ahead_car_pos = get_instantaneous_position ahead_car
+    nearest_pts = []
+    if !ahead_car.nil?
+      ahead_car_pos = calculate_current_position @t, ahead_car
+    else
+      ahead_car_pos = nil
+    end
 
     if !ahead_car_pos.nil?
       # Subtract the buffer behind the car (follow dist)
       ahead_car_pos -= 20
 
-      choices <<  ahead_car_pos
+      nearest_pts <<  ahead_car_pos
     end
     # Idk why I had a condition on stopping at the light. We definitely want to consider that as a stopping point
     nearest_pts << STOP_AT_LIGHT
@@ -244,11 +261,11 @@ class Simulation
 
 
     # The closest re-evaluation will be the minimum of the breaking-point, the stoplight breaking-point, and the end
-    ahead_critical_pos = choices.min
+    ahead_critical_pos = nearest_pts.min
 
     # We need to know if we need to apply braking distances. If the end was chosen (last), then we'll say we do NOT need to. Otherwise, no
     apply_braking = true
-    if ahead_critical_pos == choices[-1]
+    if ahead_critical_pos == nearest_pts[-1]
       apply_braking = false
     end
 
@@ -270,50 +287,57 @@ class Simulation
   def recalculate_braking_distance stop_point, car
     # Note: hopefully, current_pos will equal car.position
     current_pos = calculate_current_position @t, car
-    if current_pos != car.position
-      puts "Warning: when recalculating braking distances, the car was not on an even event spacing. current_pos calculation != car.position"
+    # Note: current_pos is in ft, and car.position is in Miles
+    if current_pos != car.position*MILES_FT
+      puts "Warning: when recalculating braking distances, the car(#{car.uid}) was not on an even event spacing. current_pos calculation != car.position"
+      puts "\tExpected: #{car.position}. Got: #{current_pos}. Current time: #{@t}. OldTime: #{car.old_t}"
     end
+
+    curr_speed = car.current_speed * MPH_FTPS
+    curr_accel = car.current_acceleration * MPHH_FTPSS
+    max_speed = car.speed * MPH_FTPS
+    max_accel = car.acceleration * MPHH_FTPSS
 
     # Calculation of possible braking distances
     # Distance to stop from full-speed
-    full_brake_dist = car.speed * (car.speed / car.acceleration) / 2
+    full_brake_dist = max_speed * (max_speed / max_accel) / 2
     # Time to accelerate from current speed to top speed
-    time_to_full_speed = (car.speed - car.current_speed) / car.acceleration
+    time_to_full_speed = (max_speed - curr_speed) / max_accel
     # Distance to accelerate to top speed
-    full_accel_dist = (car.current_speed * time_to_full_speed) + ( (car.speed - car.current_speed) * time_to_full_speed / 2 )
+    full_accel_dist = (curr_speed * time_to_full_speed) + ( (max_speed - curr_speed) * time_to_full_speed / 2 )
 
     # Distance to brake from our current speed. Note: this COULD be the same as full_brake_dist
-    brake_currspeed_dist = car.current_speed * car.current_speed / car.acceleration / 2
+    brake_currspeed_dist = curr_speed * curr_speed / max_accel / 2
 
-    if current_pos == ahead_car_pos - brake_currspeed_dist
+    if current_pos == stop_point - brake_currspeed_dist
       # BRAKE NOW!
-      # TODO: Should I match the car in front of me's speed
+      # TODO: Should I match the car in front of me's speed?
       # Time to brake from current speed to zero
-      brake_time = car.current_speed**2 / (2 * car.acceleration)
+      brake_time = curr_speed**2 / (2 * max_accel)
       car = car_transition(car, # Transition the car into how it will be at the next event
                            ahead_car_pos - brake_currspeed_dist,  # new position
                            0, # New speed
-                           -car.acceleration)
-      nextevent = Event.new(:car_reevaluate_strategy, {:car => car}
+                           -max_accel)
+      nextevent = Event.new(:car_reevaluate_strategy, {:car => car})
       queue_event @t+brake_time, nextevent
       return nextevent
     elsif current_pos < stop_point - full_brake_dist - full_accel_dist
       # We have space to accelerate to full-speed, then stop again
-      if car.current_speed < car.speed
+      if curr_speed < max_speed
         # schedule the next event to be the acceleration to full speed
         car = car_transition(car,
                              current_pos + full_accel_dist, # New position
-                             car.speed, # New speed
-                             car.acceleration)
+                             max_speed, # New speed
+                             max_accel)
         nextevent = Event.new(:car_reevaluate_strategy, {:car => car})
         queue_event @t + time_to_full_speed, nextevent
         return nextevent
-      elsif car.current_speed == car.speed
+      elsif curr_speed == max_speed
         # Continue at full speed until we have to brake
-        timetillbrake = (stop_point - full_brake_dist - current_pos) / car.current_speed
+        timetillbrake = (stop_point - full_brake_dist - current_pos) / curr_speed
         car = car_transition(car,
                              stop_point - full_brake_dist, # New position
-                             car.speed, # New speed
+                             max_speed, # New speed
                              0)
         nextevent = Event.new(:car_reevaluate_strategy, {:car => car})
         queue_event @t + timetillbrake, nextevent
@@ -322,8 +346,9 @@ class Simulation
         puts "Woah guys. We have a magic car over here... It's going faster than it's maximum speed!"
         return nil
       end
-    elsif current_pos > ahead_car_pos - brake_currspeed_dist
-      puts "Asdfasdg asurga!!! ASJDGLASdf?!#QT#%?E%^AWGVAQ@#W$YU! We don't have enough room to stop. This should be a simulation impossibility. BREAK."
+    elsif current_pos > stop_point - brake_currspeed_dist
+      puts "Car #{car.uid} doesn't have enough room to stop. Currently at #{current_pos}. Need to stop at #{stop_point}. Braking distance: #{brake_currspeed_dist}"
+      puts "This should be a simulation impossibility. BREAK."
       exit -1
     else
       # We don't have time to fully accelerate, and we're not going at full speed already
@@ -332,7 +357,7 @@ class Simulation
       # We know that we definitely have to brake from our current speed (at some point).. If we accelerate then decel, we're going to come back to our current speed
 
       # We now know that we have a specific distance where we can do whatever we want... as long as we're braking at brake_currspeed_dist
-      whatever_dist = ahead_car_pos - brake_currspeed_dist - current_pos
+      whatever_dist = stop_point - brake_currspeed_dist - current_pos
 
       # Since we have acceleration/deceleration symmetry, we can accelerate for half that distance, and decelerate for the other half
       accel_dist = whatever_dist / 2
@@ -342,28 +367,31 @@ class Simulation
       # D = (s_f - s_c)**2 / (2a)
       # sqrt(2 D a) = s_f - s_c
       # s_f = s_c + sqrt(2 D a)
-      speed_final = current_speed + sqrt(2*accel_dist*car.acceleration);
+      speed_final = current_speed + sqrt(2*accel_dist*max_accel);
 
       # Time to accelerate to that speed
-      accel_time = (speed_final - car.current_speed) / car.accelaration
+      accel_time = (speed_final - curr_speed) / max_accel
 
       # Schedule the event for accelerating to this partial speed
       car = car_transition(car,
                            current_pos + accel_dist, # New position
                            speed_final, # New Speed
-                           car.accelaration)
+                           max_accel)
       nextevent = Event.new(:car_reevaluate_strategy, {:car => car})
       queue_event @t+accel_time, nextevent
     end
   end
 
+  # new Position is in FEET
+  # new speed is in FPS
+  # new acceleration is in FEET / S**2
   def car_transition car, newpos, newspeed, newaccel
     car.old_pos = car.position
     car.old_t = @t
 
-    car.position = newpos
-    car.current_speed = newspeed
-    car.current_acceleration = newaccel
+    car.position = newpos/MILES_FT
+    car.current_speed = newspeed/MPH_FTPS
+    car.current_acceleration = newaccel/MPHH_FTPSS
 
     return car
   end

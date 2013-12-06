@@ -24,7 +24,12 @@ TIME_YELLOW = 8
 
 MINUTE = 60
 MILES_FT = 5280
-MPH_FTPS = 1.46667
+
+# MPH -> FPS
+MPH_FTPS = 5280 / 3600
+
+# Miles per hour squared -> Feet per second squared
+MPHH_FTPSS = 5280 / 3600 / 3600
 
 STREAM_PEOPLE = 1
 STREAM_CARS = 2
@@ -126,12 +131,13 @@ class Simulation
       else
         poses[1] << curr_pos
       end
+      puts "Time: #{@t}. Car: #{car.uid} is at #{curr_pos}"
     end
 
     # left-lane car positions string
     lcar_string = ""
     poses[0].each do |cpos|
-      lcar_string += "#{car.position.round},"
+      lcar_string += "#{cpos.round},"
     end
     lcar_string = lcar_string[0..-2]
     if lcar_string == "" then lcar_string = "-20000" end # prevents a weird malloc bug in the C++ Vis
@@ -139,10 +145,12 @@ class Simulation
     # right-lane car positions string
     rcar_string = ""
     poses[1].each do |cpos|
-      rcar_string += "#{car.position.round},"
+      rcar_string += "#{cpos.round},"
     end
     rcar_string = rcar_string[0..-2]
     if rcar_string == "" then rcar_string = "-20000" end # prevents a weird malloc bug in the C++ Vis
+
+    return "#{lcar_string}:#{rcar_string}"
 	end
 
   # Gets the car ahead of the specified car from the @cars list
@@ -204,21 +212,27 @@ class Simulation
     @eventlist = @eventlist.select { |e| ! ( e.type == :car_reevaluate_strategy and e.data[:car] == car) }
   end
 
+  # Return the current position of the car in FT
   def calculate_current_position time, car
     # start at where it used to be
-    current_pos = car.old_pos
+    # CONVERT THE POSITION TO FEET
+    current_pos = car.old_pos*MILES_FT
+    # Definitely need to convert this to FPS
+    curr_speed = car.current_speed * MPH_FTPS
+    curr_accel = car.current_acceleration * MPHH_FTPSS
 
     # perform the evolution from car.old_t to time
-    if car.current_acceleration == 0
-      current_pos += (time - car.old_t)*car.current_speed
+    if curr_accel == 0
+      current_pos += (time - car.old_t)*curr_speed
     else
       # Either accelerating or decelerating
-      old_speed = car.current_speed - (time - car.old_t)*car.current_acceleration
+      old_speed = curr_speed - (time - car.old_t)*curr_accel
       # Integral under the speed-square
-      current_pos += (time - car.old_t) * [car.current_speed, old_speed].min
+      current_pos += (time - car.old_t) * [curr_speed, old_speed].min
 
       # Integral under the upper speed-triangle
-      current_pos += (time - car.old_t) * ( [car.current_speed, old_speed].max - [car.current_speed, old_speed].min ) / 2
+      current_pos += (time - car.old_t) * ( [curr_speed, old_speed].max - [curr_speed, old_speed].min ) / 2
     end
+    return current_pos
   end
 end
