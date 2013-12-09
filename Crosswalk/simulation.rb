@@ -128,7 +128,7 @@ class Simulation
       else
         poses[1] << curr_pos
       end
-      puts "Time: #{@t}. Car: #{car.uid} is at #{curr_pos}"
+      # puts "Time: #{@t}. Car: #{car.uid} is at #{curr_pos}"
     end
 
     # left-lane car positions string
@@ -172,7 +172,7 @@ class Simulation
 	end
 	
 	def direction_arrow_for_car c
-	  (c.direction) ? "->" : "<-" #"⫷ " : "⫸ "
+	  (c.direction) ? "<-" : "->" #"⫷ " : "⫸ "
 	end
 	
 	def attempt_walk_request person
