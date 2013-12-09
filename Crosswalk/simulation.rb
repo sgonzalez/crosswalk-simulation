@@ -168,7 +168,7 @@ class Simulation
   end
 	
 	def print_time
-	  print "\x1b[34mT=#{@t.round} \x1b[0m".ljust(18)
+	  print "\x1b[34mT=#{@t.round 2} \x1b[0m".ljust(18)
 	end
 	
 	def direction_arrow_for_car c
@@ -206,7 +206,7 @@ class Simulation
 	end
 
   def strip_car_reevals car
-    @eventlist = @eventlist.select { |e| ! ( e.type == :car_reevaluate_strategy and e.data[:car] == car) }
+    @eventlist = @eventlist.select { |enode| ! ( enode.data.type == :car_reevaluate_strategy and enode.data.data[:car] == car) }
   end
 
   # Return the current position of the car in FT

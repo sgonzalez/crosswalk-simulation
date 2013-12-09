@@ -58,7 +58,7 @@ class Simulation
     if ev
       print_time
       @cars << ev.data[:car]
-      puts "New \x1b[37mCAR\x1b[0m #{direction_arrow_for_car ev.data[:car]} w/ speed: #{"%0.4f" % ev.data[:car].speed}"
+      puts "New \x1b[37mCAR (#{ev.data[:car].uid})\x1b[0m #{direction_arrow_for_car ev.data[:car]} w/ speed: #{"%0.4f" % ev.data[:car].speed}"
       
       # Queue intersection event
       # queue_event @t+(DISTANCE_EDGE_MIDDLE-WIDTH_CROSSWALK/2)/MPH_FTPS/ev.data[:car].speed, Event.new(:car_crosswalk_intersection, {:car => ev.data[:car]})
@@ -273,9 +273,10 @@ class Simulation
     if apply_braking
       ahead_car_speed = nil
       if nearest_pts.length > 2 and ahead_critical_pos == nearest_pts[0]
-        ahead_car_speed = ahead_car.current_speed * MPH_FTPS
+        # ahead_car_speed = ahead_car.current_speed * MPH_FTPS
+        ahead_car_strat = ahead_car.strategy
       end
-      added_event = recalculate_braking_distance ahead_critical_pos, car, ahead_car_speed
+      added_event = recalculate_braking_distance ahead_critical_pos, car, ahead_car, ahead_car_strat
     else
       # The closest point is exit. How shall I accelerate?
       curr_speed = car.current_speed * MPH_FTPS
@@ -307,6 +308,7 @@ class Simulation
                                current_pos + accel_dist, # New position
                                speed_final, # New Speed
                                max_accel)
+          car.strategy = :ACCEL
           nextevent = Event.new(:car_finished, {:car => car})
           queue_event @t+accel_time, nextevent
         else
@@ -315,6 +317,7 @@ class Simulation
                                current_pos + full_accel_dist, # New position
                                max_speed, # New speed
                                max_accel)
+          car.strategy = :ACCEL
           nextevent = Event.new(:car_reevaluate_strategy, {:car => car})
           queue_event @t + time_to_full_speed, nextevent
         end
@@ -329,7 +332,8 @@ class Simulation
 
   # Takes the closest place that must be stopped at and the car heading towards it, and figures out where/when the next re-evaluation event should happen
   # Returns the event. Note, this event HAS been added to the queue
-  def recalculate_braking_distance stop_point, car, ahead_speed=nil
+  def recalculate_braking_distance stop_point, car, ahead_car, ahead_strat=nil
+    puts "Car #{car.uid}: Calculating braking distance at time=#{@t}"
     # puts "Calculating braking distance of car #{car.uid} at time #{@t}"
     # Note: hopefully, current_pos will equal car.position
     current_pos = calculate_current_position @t, car
@@ -356,18 +360,32 @@ class Simulation
     brake_currspeed_dist = curr_speed * curr_speed / max_accel / 2
 
     # NOTE: Rounding here is due to lack of precision. See NOTE: PRECISIONLOSS
-    if current_pos == (stop_point - brake_currspeed_dist).round(6)
+    if current_pos == (stop_point - brake_currspeed_dist).round(6) or current_pos == stop_point - brake_currspeed_dist
       # BRAKE NOW!
-      # TODO: Should I match the car in front of me's speed?
-      # Time to brake from current speed to zero
-      brake_time = curr_speed**2 / (2 * max_accel)
-      car = car_transition(car, # Transition the car into how it will be at the next event
-                           stop_point - brake_currspeed_dist,  # new position
-                           0, # New speed
-                           -max_accel)
-      puts "Car #{car.uid} is changing their strategy to: BRAKING"
-      nextevent = Event.new(:car_reevaluate_strategy, {:car => car})
-      queue_event @t+brake_time, nextevent
+      if ahead_strat and (ahead_strat == :ACCEL or ahead_strat == :CONSTSPEED)
+        # Match the car in front's speed
+        # car.current_speed = ahead_car.current_speed
+        car.current_acceleration = 0
+        # Now, decide when the car in front will be at an appropriate distance away.
+        # Use the car in front's speed to predict this
+        # NOTE: This assumes they are not accelerating
+        ahead_speed = ahead_car.current_speed * MPH_FTPS
+        # Let it fall out... We need a full-scale reevaluation when the ahead-car starts braking
+      else
+        # BRAKE! for the car in front
+        # Time to brake from current speed to zero
+        brake_time = curr_speed**2 / (2 * max_accel)
+        car = car_transition(car, # Transition the car into how it will be at the next event
+                             stop_point - brake_currspeed_dist,  # new position
+                             0, # New speed
+                             -max_accel)
+        car.strategy = :BRAKING
+        nextevent = Event.new(:car_reevaluate_strategy, {:car => car})
+        puts "Car #{car.uid} is BRAKING. Will be done at #{car.position}m. #{@t+brake_time}s. Ending speed: #{car.current_speed}"
+        queue_event @t+brake_time, nextevent
+        # ALSO, notify cars behind us.
+        reevaluate_all_car_strats()
+      end
       return nextevent
     elsif current_pos < stop_point - full_brake_dist - full_accel_dist
       # We have space to accelerate to full-speed, then stop again
@@ -378,6 +396,7 @@ class Simulation
                              max_speed, # New speed
                              max_accel)
         puts "Car #{car.uid} is changing their strategy to: ACCELERATE"
+        car.strategy = :ACCEL
         nextevent = Event.new(:car_reevaluate_strategy, {:car => car})
         queue_event @t + time_to_full_speed, nextevent
         return nextevent
@@ -388,7 +407,8 @@ class Simulation
                              stop_point - full_brake_dist, # New position
                              max_speed, # New speed
                              0)
-        puts "Car #{car.uid} is changing their strategy to: CONSTANT_MAX_SPEED"
+        puts "Car #{car.uid} is changing their strategy to: CONSTSPEED at #{car.current_speed} Will reevaluate in #{timetillbrake}, pos=#{car.position}. FullBrakeDist=#{full_brake_dist}"
+        car.strategy = :CONSTSPEED
         nextevent = Event.new(:car_reevaluate_strategy, {:car => car})
         queue_event @t + timetillbrake, nextevent
         return nextevent
@@ -414,12 +434,15 @@ class Simulation
           car.current_speed = enterspeed/MPH_FTPS
           puts "Changing Car #{car.uid}'s speed to #{car.current_speed}"
           puts "Recursing at time #{@t}"
-          return recalculate_braking_distance stop_point, car, ahead_speed
+          return recalculate_braking_distance stop_point, car, ahead_car, ahead_strat
         else
           # If when we spawn, we're already inside the car's bubble... ERROR! Cuz this sucks, and requires much more work
+          puts "ERROR: Car #{car.uid} will spawn inside the car's bubble >:("
         end
+      else
+        puts "ERROR: Car #{car.uid} has NO way to stop!"
       end
-      puts "Car #{car.uid} doesn't have enough room to stop. Currently at #{current_pos}. Need to stop at #{stop_point}. Braking distance: #{brake_currspeed_dist}"
+      puts "Car #{car.uid} doesn't have enough room to stop. Currently at #{current_pos}. Need to stop at #{stop_point}. Braking distance: #{brake_currspeed_dist}. Stop-Brake: #{stop_point-brake_currspeed_dist}"
       puts "Time: #{@t}. Car's old t: #{car.old_t}"
       puts "This should be a simulation impossibility. BREAK."
       exit -1
@@ -450,7 +473,8 @@ class Simulation
                            current_pos + accel_dist, # New position
                            speed_final, # New Speed
                            max_accel)
-      puts "Car #{car.uid} is changing their strategy to: PARTIAL_ACCEL"
+      puts "Car #{car.uid} is changing their strategy to: PARTIAL_ACCEL. Will be done at #{accel_time}s, in #{accel_dist}ft. I'm at #{current_pos}. Stop point at #{stop_point}. FullAccelDist: #{full_accel_dist}. FullBrakeDist: #{full_brake_dist}. Stop-BrakeCurrSpeed: #{stop_point - brake_currspeed_dist}. Stop-FullBrake-FullAccel: #{stop_point - full_brake_dist - full_accel_dist}"
+      car.strategy = :ACCEL
       nextevent = Event.new(:car_reevaluate_strategy, {:car => car})
       queue_event @t+accel_time, nextevent
     end

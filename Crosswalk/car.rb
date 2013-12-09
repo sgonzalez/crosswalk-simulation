@@ -15,6 +15,7 @@ Car = Struct.new(
   :old_pos,
   :old_t,
   # Suggested Optional (not used immediately)
+  :strategy,
   :wait_start,
   :wait_finish,
   :current_speed,
