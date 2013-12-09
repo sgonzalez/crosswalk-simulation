@@ -46,6 +46,7 @@ class Simulation
         0,                                                  # Old position (same place as current position)
         when_t                                              # Old time: NOW
       )
+      car.old_s = car.speed # old speed = current speed.
 
       @carid += 1
       car.current_speed = car.speed
@@ -202,6 +203,7 @@ class Simulation
 
   # Meant to be called instantaneously (on emergency basically)
   def reevaluate_all_car_strats
+    puts "RE-EVALUATING ALL THE CARS' STRATEGIES!!!!!"
     # separation of left and right allows for easier short-circuiting the re-evaluations
     lefts = @cars.select { |c| c.direction == false }
     rights = @cars.select { |c| c.direction == true }
@@ -211,14 +213,22 @@ class Simulation
 
   def reeval_carlist cars
     cars.each do |car|
-      # Evaluate the current position
-      current_pos = calculate_current_position @t, car
+      # Evaluate the current position, speed, and acceleration is known to stay the same thoughout the interval. Always
+      curr_accel = car.current_acceleration
+      curr_speed = car.old_s*MPH_FTPS + (@t - car.old_t)*curr_accel
+      curr_pos = calculate_current_position @t, car
 
-      if current_pos > STOP_AT_LIGHT
+      if curr_pos > STOP_AT_LIGHT
         # Skip cars that won't change because of the light. TODO: Assume that the only reason this function is called is because the light changed
         # This also bodes well with the short-circuiting
         next
       end
+
+      # We update their pos/speed ONLY if their strategy will be reevaluated
+      car = car_transition(car,
+                           curr_pos, # New position
+                           curr_speed, # New Speed
+                           curr_accel)
 
       # Strip out re-evaluations of this car
       strip_car_reevals car
@@ -338,9 +348,12 @@ class Simulation
     # Note: hopefully, current_pos will equal car.position
     current_pos = calculate_current_position @t, car
     # Note: current_pos is in ft, and car.position is in Miles
-    if current_pos != car.position*MILES_FT
+    # NOTE: Inaccuracies due to Math.sqrt
+    if current_pos.round(6) != (car.position*MILES_FT).round(6)
+      puts "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
       puts "Warning: when recalculating braking distances, the car(#{car.uid}) was not on an even event spacing. current_pos calculation != car.position"
-      puts "\tExpected: #{car.position}. Got: #{current_pos}. Current time: #{@t}. OldTime: #{car.old_t}"
+      puts "\tExpected: #{car.position*MILES_FT}. Got: #{current_pos}. Current time: #{@t}. OldTime: #{car.old_t}"
+      puts "\tWas at #{car.old_pos*MILES_FT}. CurrSpeed = #{car.current_speed}. CurrAccel=#{car.current_acceleration}"
     end
 
     curr_speed = car.current_speed * MPH_FTPS
@@ -360,7 +373,7 @@ class Simulation
     brake_currspeed_dist = curr_speed * curr_speed / max_accel / 2
 
     # NOTE: Rounding here is due to lack of precision. See NOTE: PRECISIONLOSS
-    if current_pos == (stop_point - brake_currspeed_dist).round(6) or current_pos == stop_point - brake_currspeed_dist
+    if (stop_point == STOP_AT_LIGHT and @stoplight_state == :RED) or (current_pos == (stop_point - brake_currspeed_dist).round(6) or current_pos == stop_point - brake_currspeed_dist)
       puts "BRAKENOW"
       # BRAKE NOW!
       if ahead_strat and (ahead_strat == :ACCEL or ahead_strat == :CONSTSPEED)
@@ -392,13 +405,18 @@ class Simulation
                              stop_point - brake_currspeed_dist,  # new position
                              0, # New speed
                              -max_accel)
-        car.strategy = :BRAKING
         nextevent = Event.new(:car_reevaluate_strategy, {:car => car})
         # puts "Car #{car.uid} is BRAKING. Will be done at #{car.position}m. #{@t+brake_time}s. Ending speed: #{car.current_speed}"
         puts "Car #{car.uid} is BRAKING. Speed=#{car.current_speed}, Accel=#{car.current_acceleration}"
         queue_event @t+brake_time, nextevent
         # ALSO, notify cars behind us.
-        reevaluate_all_car_strats()
+        # But... ONLY if we're freshly braking
+        if car.strategy != :BRAKING
+          car.strategy = :BRAKING
+          reevaluate_all_car_strats()
+        else
+          car.strategy = :BRAKING
+        end
       end
       return nextevent
     elsif current_pos < stop_point - full_brake_dist - full_accel_dist
@@ -420,16 +438,17 @@ class Simulation
         timetillbrake = (stop_point - full_brake_dist - current_pos) / curr_speed
         car = car_transition(car,
                              stop_point - full_brake_dist, # New position
-                             max_speed, # New speed
+                             curr_speed, # New speed
                              0)
         # puts "Car #{car.uid} is changing their strategy to: CONSTSPEED at #{car.current_speed} Will reevaluate in #{timetillbrake}, pos=#{car.position}. FullBrakeDist=#{full_brake_dist}"
-        puts "Car #{car.uid} is changing their strategy to: CONSTSPEED. Speed=#{car.current_speed}. Accel=#{car.current_acceleration}"
+        puts "Car #{car.uid} is changing their strategy to: CONSTSPEED. Speed=#{car.current_speed}. MaxSpeed=#{car.speed}. Accel=#{car.current_acceleration}"
+        puts "\tMust stop at #{stop_point}, can brake in #{full_brake_dist}ft, and is currently at #{current_pos}. Should stop at #{@t+timetillbrake}"
         car.strategy = :CONSTSPEED
         nextevent = Event.new(:car_reevaluate_strategy, {:car => car})
         queue_event @t + timetillbrake, nextevent
         return nextevent
       else
-        puts "Woah guys. We have a magic car over here... It's going faster than it's maximum speed!"
+        puts "Woah guys. We have a magic car over here (#{car.uid})... It's going faster than it's maximum speed!"
         return nil
       end
     elsif current_pos > stop_point - brake_currspeed_dist
@@ -524,6 +543,7 @@ class Simulation
   def car_transition car, newpos, newspeed, newaccel
     car.old_pos = car.position
     car.old_t = @t
+    car.old_s = car.current_speed
 
     car.position = newpos/MILES_FT
     car.current_speed = newspeed/MPH_FTPS

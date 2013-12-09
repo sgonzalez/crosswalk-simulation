@@ -214,16 +214,19 @@ class Simulation
     # start at where it used to be
     # CONVERT THE POSITION TO FEET
     current_pos = car.old_pos*MILES_FT
-    # Definitely need to convert this to FPS
-    curr_speed = car.current_speed * MPH_FTPS
     curr_accel = car.current_acceleration
 
+    old_speed = car.old_s*MPH_FTPS
+    curr_speed = old_speed + (time - car.old_t)*curr_accel
+
+
     # perform the evolution from car.old_t to time
+    # We CAN assume that the current speed has been and will be constant throughout the interval
     if curr_accel == 0
       current_pos += (time - car.old_t)*curr_speed
     else
       # Either accelerating or decelerating
-      old_speed = curr_speed - (time - car.old_t)*curr_accel
+      #
       # Integral under the speed-square
       current_pos += (time - car.old_t) * [curr_speed, old_speed].min
 

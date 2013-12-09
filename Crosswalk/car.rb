@@ -14,6 +14,7 @@ Car = Struct.new(
   :uid,
   :old_pos,
   :old_t,
+  :old_s,
   # Suggested Optional (not used immediately)
   :strategy,
   :wait_start,
