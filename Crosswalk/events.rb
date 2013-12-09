@@ -380,7 +380,7 @@ class Simulation
     brake_currspeed_dist = curr_speed * curr_speed / max_accel / 2
 
     # NOTE: Rounding here is due to lack of precision. See NOTE: PRECISIONLOSS
-    if (current_pos == (stop_point - brake_currspeed_dist).round(6) or current_pos == stop_point - brake_currspeed_dist)
+    if (current_pos.round(6) == (stop_point - brake_currspeed_dist).round(6) or current_pos == stop_point - brake_currspeed_dist)
       puts "BRAKENOW"
       # BRAKE NOW!
       if ahead_strat and (ahead_strat == :ACCEL or ahead_strat == :CONSTSPEED)
@@ -450,7 +450,7 @@ class Simulation
                              0)
         # puts "Car #{car.uid} is changing their strategy to: CONSTSPEED at #{car.current_speed} Will reevaluate in #{timetillbrake}, pos=#{car.position}. FullBrakeDist=#{full_brake_dist}"
         puts "Car #{car.uid} is changing their strategy to: CONSTSPEED. Speed=#{car.current_speed}. MaxSpeed=#{car.speed}. Accel=#{car.current_acceleration}"
-        puts "\tMust stop at #{stop_point}, can brake in #{full_brake_dist}ft, and is currently at #{current_pos}. Should stop at #{@t+timetillbrake}"
+        puts "\tMust stop at #{stop_point}, can brake in #{full_brake_dist}ft, and is currently at #{current_pos}. Should stop in #{timetillbrake}"
         car.strategy = :CONSTSPEED
         nextevent = Event.new(:car_reevaluate_strategy, {:car => car})
         queue_event @t + timetillbrake, nextevent
