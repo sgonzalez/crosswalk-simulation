@@ -225,10 +225,9 @@ class Simulation
       end
 
       # We update their pos/speed ONLY if their strategy will be reevaluated
-      car = car_transition(car,
-                           curr_pos, # New position
-                           curr_speed, # New Speed
-                           curr_accel)
+      # NOTE: the old_t, old_s, and old_pos variables need to stay exactly the same
+      car.position = curr_pos
+      car.current_speed = curr_speed
 
       # Strip out re-evaluations of this car
       strip_car_reevals car
@@ -266,8 +265,16 @@ class Simulation
       nearest_pts <<  ahead_car_pos
       puts "Ahead car(#{ahead_car.uid}) is at #{ahead_car_pos}"
     end
-    # Idk why I had a condition on stopping at the light. We definitely want to consider that as a stopping point
-    nearest_pts << STOP_AT_LIGHT
+    # Idk why I had a condition on stopping at the light. We definitely want to consider that as a stopping point.
+    # LIES! We need a check here to see if we're at the decision point for the light. If we are, and it's green, we do NOT consider the light
+    current_pos = calculate_current_position @t, car
+    max_accel = car.acceleration
+    curr_speed = car.current_speed * MPH_FTPS
+    brake_currspeed_dist = curr_speed * curr_speed / max_accel / 2
+    if current_pos == STOP_AT_LIGHT - brake_currspeed_dist and @stoplight_state == :GREEN
+    else
+      nearest_pts << STOP_AT_LIGHT
+    end
     nearest_pts << 2*DISTANCE_EDGE_MIDDLE
 
 
@@ -373,7 +380,7 @@ class Simulation
     brake_currspeed_dist = curr_speed * curr_speed / max_accel / 2
 
     # NOTE: Rounding here is due to lack of precision. See NOTE: PRECISIONLOSS
-    if (stop_point == STOP_AT_LIGHT and @stoplight_state == :RED) or (current_pos == (stop_point - brake_currspeed_dist).round(6) or current_pos == stop_point - brake_currspeed_dist)
+    if (current_pos == (stop_point - brake_currspeed_dist).round(6) or current_pos == stop_point - brake_currspeed_dist)
       puts "BRAKENOW"
       # BRAKE NOW!
       if ahead_strat and (ahead_strat == :ACCEL or ahead_strat == :CONSTSPEED)
@@ -384,6 +391,7 @@ class Simulation
         # NOTE: This assumes they are not accelerating
         ahead_speed = ahead_car.current_speed * MPH_FTPS
         desired_brake_dist = ahead_speed**2 / max_accel / 2
+        (desired_brake_dist*10**6).floor / 10**6
 
         # This is the time at which me going at my current speed will be able to brake safely behind the car ahead at their speed
         # Reevaluate our strategy then. We should decide to accelerate then
@@ -541,6 +549,11 @@ class Simulation
   # new acceleration is in FEET / S**2
   #   Acceleration is STORED in FPS aswell
   def car_transition car, newpos, newspeed, newaccel
+    puts "Time: #{@t}"
+    puts "\tModifying car #{car.uid}"
+    puts "\toldpos=#{car.position*MILES_FT}"
+    puts "\toldt=#{@t}"
+    puts "\toldspeed=#{car.current_speed*MPH_FTPS}"
     car.old_pos = car.position
     car.old_t = @t
     car.old_s = car.current_speed
@@ -548,6 +561,9 @@ class Simulation
     car.position = newpos/MILES_FT
     car.current_speed = newspeed/MPH_FTPS
     car.current_acceleration = newaccel
+    puts "\tNewpos=#{car.position*MILES_FT}"
+    puts "\tNewSpeed=#{car.current_speed*MPH_FTPS}"
+    puts "\tNewAccel=#{car.current_acceleration}"
 
     return car
   end
