@@ -206,6 +206,7 @@ class Simulation
 	end
 
   def strip_car_reevals car
+    puts "STRIPPING reevals of Car #{car.uid}"
     @eventlist = @eventlist.select { |enode| ! ( enode.data.type == :car_reevaluate_strategy and enode.data.data[:car] == car) }
   end
 

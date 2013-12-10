@@ -197,16 +197,30 @@ class Simulation
     @last_transition_to_green = @t
 
     # instantaneously change all the waiting cars strategies
-    reevaluate_all_car_strats()
+    puts "GREEN LIGHT REEVALUATION!"
+    reevaluate_all_car_strats STOP_AT_LIGHT.to_f, nil
     # queue_event @t+(DISTANCE_EDGE_MIDDLE+WIDTH_CROSSWALK/2)*MPH_FTPS/car.speed, Event.new(:car_finished, {:car => car})
   end
 
   # Meant to be called instantaneously (on emergency basically)
-  def reevaluate_all_car_strats
+  # beforepos is the distance behind which cars will be reevaluated. Default is before the stoplight
+  #   IN FEET
+  def reevaluate_all_car_strats beforepos=STOP_AT_LIGHT.to_f, direction=nil
+
     puts "RE-EVALUATING ALL THE CARS' STRATEGIES!!!!!"
     # separation of left and right allows for easier short-circuiting the re-evaluations
-    lefts = @cars.select { |c| c.direction == false }
-    rights = @cars.select { |c| c.direction == true }
+    if direction.nil?
+      # Do BOTH left and right if no direction is passed
+      lefts = @cars.select { |c| c.direction == false && c.position <= beforepos/MILES_FT }
+      rights = @cars.select { |c| c.direction == true && c.position <= beforepos/MILES_FT }
+    else
+      # If direction is passed, then apply only to the corresponding direction
+      lefts = @cars.select { |c| c.direction == direction && c.position <= beforepos/MILES_FT }
+      rights = @cars.select { |c| c.direction == direction && c.position <= beforepos/MILES_FT }
+    end
+    lefts = lefts.sort { |x,y| y.position <=> x.position }
+    rights = rights.sort { |x,y| y.position <=> x.position }
+
     reeval_carlist lefts
     reeval_carlist rights
   end
@@ -218,16 +232,19 @@ class Simulation
       curr_speed = car.old_s*MPH_FTPS + (@t - car.old_t)*curr_accel
       curr_pos = calculate_current_position @t, car
 
-      if curr_pos > STOP_AT_LIGHT
+      if curr_pos > STOP_AT_LIGHT.to_f
+        puts "All Car Reeval: Skipping Car #{car.uid}. Is at #{curr_pos}"
         # Skip cars that won't change because of the light. TODO: Assume that the only reason this function is called is because the light changed
         # This also bodes well with the short-circuiting
         next
       end
 
+      puts "All Car Reeval: Car #{car.uid} pos: #{car.old_pos/MILES_FT} => #{curr_pos}"
+      puts "\t\tCar #{car.uid} speed: #{car.old_s} => #{curr_speed}"
       # We update their pos/speed ONLY if their strategy will be reevaluated
       # NOTE: the old_t, old_s, and old_pos variables need to stay exactly the same
-      car.position = curr_pos
-      car.current_speed = curr_speed
+      car.position = curr_pos/MILES_FT
+      car.current_speed = curr_speed/MPH_FTPS
 
       # Strip out re-evaluations of this car
       strip_car_reevals car
@@ -245,15 +262,30 @@ class Simulation
   def car_reevaluate_strategy ev
     # Check the current surroundings to evaluate what to do next
     car = ev.data[:car]
-    puts "Evaluating the strategy of car #{car.uid} at time #{@t}"
+    puts "Evaluating the strategy of Car #{car.uid} at time #{@t}"
 
     ahead_car = get_car_ahead car
+
+    current_pos = calculate_current_position @t, car
+=begin
+    if car.uid == 5 and ahead_car.uid == 0
+      puts "WHAT HAPPENED TO 4!?"
+      (@cars.select { |x| x.direction == car.direction}).each do |ocar|
+        puts "\tCar #{ocar.uid} is at #{calculate_current_position @t, ocar} (#{ocar.position*MILES_FT}). I'm at #{current_pos} (#{car.position*MILES_FT})"
+      end
+    end
+=end
+
 
     # We have to do an evaluation of the position of that ahead-car, since we don't store inter-mediate positions
     # Save the ahead car's position. we may need it later
     nearest_pts = []
     if !ahead_car.nil?
       ahead_car_pos = calculate_current_position @t, ahead_car
+
+      if ahead_car_pos < current_pos
+        puts "WTF! How is the ahead Car #{ahead_car.uid} behind me?"
+      end
     else
       ahead_car_pos = nil
     end
@@ -267,15 +299,15 @@ class Simulation
     end
     # Idk why I had a condition on stopping at the light. We definitely want to consider that as a stopping point.
     # LIES! We need a check here to see if we're at the decision point for the light. If we are, and it's green, we do NOT consider the light
-    current_pos = calculate_current_position @t, car
     max_accel = car.acceleration
     curr_speed = car.current_speed * MPH_FTPS
     brake_currspeed_dist = curr_speed * curr_speed / max_accel / 2
-    if current_pos == STOP_AT_LIGHT - brake_currspeed_dist and @stoplight_state == :GREEN
+    if current_pos > STOP_AT_LIGHT.to_f or (current_pos == STOP_AT_LIGHT.to_f - brake_currspeed_dist and @stoplight_state == :GREEN)
     else
-      nearest_pts << STOP_AT_LIGHT
+      nearest_pts << STOP_AT_LIGHT.to_f
+      # puts "Car #{car.uid} will consider the light!!!"
     end
-    nearest_pts << 2*DISTANCE_EDGE_MIDDLE
+    nearest_pts << 2*DISTANCE_EDGE_MIDDLE.to_f
 
 
     # The closest re-evaluation will be the minimum of the breaking-point, the stoplight breaking-point, and the end
@@ -338,6 +370,20 @@ class Simulation
           nextevent = Event.new(:car_reevaluate_strategy, {:car => car})
           queue_event @t + time_to_full_speed, nextevent
         end
+      elsif curr_speed == max_speed
+        # The car is already be traveling at max speed
+        dist_left = ahead_critical_pos - current_pos
+        travel_time = dist_left / curr_speed
+
+        puts "Scheduling Car #{car.uid} to leave at #{@t+travel_time}. ahead_critical_pos: #{ahead_critical_pos}"
+        car = car_transition(car,
+                             ahead_critical_pos, # New position
+                             max_speed, # New Speed
+                             0)
+        car.strategy = :CONSTSPEED
+        puts "Scheduled!"
+        nextevent = Event.new(:car_finished, {:car => car})
+        queue_event @t+travel_time, nextevent
       end
     end
   end
@@ -384,46 +430,71 @@ class Simulation
       puts "BRAKENOW"
       # BRAKE NOW!
       if ahead_strat and (ahead_strat == :ACCEL or ahead_strat == :CONSTSPEED)
-        # Match the car in front's speed
-        car.current_acceleration = 0
-        # Now, decide when the car in front will be at an appropriate distance away.
-        # Use the car in front's speed to predict this
-        # NOTE: This assumes they are not accelerating
-        ahead_speed = ahead_car.current_speed * MPH_FTPS
-        desired_brake_dist = ahead_speed**2 / max_accel / 2
-        (desired_brake_dist*10**6).floor / 10**6
-
-        # This is the time at which me going at my current speed will be able to brake safely behind the car ahead at their speed
-        # Reevaluate our strategy then. We should decide to accelerate then
-        convergence_time = ( current_pos + desired_brake_dist - stop_point ) / (ahead_speed - curr_speed)
-        puts "ConvergenceTime = #{convergence_time}"
-        car = car_transition(car,
-                             current_pos + curr_speed*convergence_time, # Position will have the distance covered in that time added to it
-                             curr_speed,
-                             0)
-        puts "Car #{car.uid} is now CONSTSPEED. Speed=#{curr_speed}fps(#{car.current_speed}mph), Accel=#{car.current_acceleration}"
-        car.strategy = :CONSTSPEED
-        nextevent = Event.new :car_reevaluate_strategy, {:car => car}
-        queue_event @t+convergence_time, nextevent
-      else
-        # BRAKE! for the car in front
-        # Time to brake from current speed to zero
-        brake_time = curr_speed**2 / (2 * max_accel)
-        car = car_transition(car, # Transition the car into how it will be at the next event
-                             stop_point - brake_currspeed_dist,  # new position
-                             0, # New speed
-                             -max_accel)
-        nextevent = Event.new(:car_reevaluate_strategy, {:car => car})
-        # puts "Car #{car.uid} is BRAKING. Will be done at #{car.position}m. #{@t+brake_time}s. Ending speed: #{car.current_speed}"
-        puts "Car #{car.uid} is BRAKING. Speed=#{car.current_speed}, Accel=#{car.current_acceleration}"
-        queue_event @t+brake_time, nextevent
-        # ALSO, notify cars behind us.
-        # But... ONLY if we're freshly braking
-        if car.strategy != :BRAKING
-          car.strategy = :BRAKING
-          reevaluate_all_car_strats()
+        # TODO: What if we're going faster than them?
+        if car.current_speed > ahead_car.current_speed
+          puts "We're traveling faster than the car in front. ERROR: NOT IMPLEMENTED"
+          # Decelerate to match their speed
+          final_speed = ahead_car.current_speed * MPH_FTPS
+          dec_time = (curr_speed - final_speed) / max_accel
+          trav_dist = final_speed * dec_time + (curr_speed - final_speed) * dec_time / 2
+          car = car_transition(car,
+                               current_pos + trav_dist, # Final pos
+                               final_speed,
+                               -max_accel)
+          nextevent = Event.new :car_reevaluate_strategy, {:car => car}
+          queue_event @t+dec_time, nextevent
         else
-          car.strategy = :BRAKING
+          #
+          # Match the car in front's speed
+          # Now, decide when the car in front will be at an appropriate distance away.
+          # Use the car in front's speed to predict this
+          # NOTE: This assumes they are not accelerating
+          ahead_speed = ahead_car.current_speed * MPH_FTPS
+          desired_brake_dist = ahead_speed**2 / max_accel / 2
+          (desired_brake_dist*10**6).floor / 10**6
+
+          # This is the time at which me going at my current speed will be able to brake safely behind the car ahead at their speed
+          # Reevaluate our strategy then. We should decide to accelerate then
+          convergence_time = ( current_pos + desired_brake_dist - stop_point ) / (ahead_speed - curr_speed)
+          puts "ConvergenceTime = #{convergence_time}"
+          car = car_transition(car,
+                               current_pos + curr_speed*convergence_time, # Position will have the distance covered in that time added to it
+                               curr_speed,
+                               0)
+          puts "Car #{car.uid} is now CONSTSPEED. Speed=#{curr_speed}fps(#{car.current_speed}mph), Accel=#{car.current_acceleration}"
+          car.strategy = :CONSTSPEED
+          nextevent = Event.new :car_reevaluate_strategy, {:car => car}
+          queue_event @t+convergence_time, nextevent
+        end
+      else
+        if curr_speed > 0
+          # BRAKE! for the car in front
+          # Time to brake from current speed to zero
+          brake_time = curr_speed / max_accel
+          car = car_transition(car, # Transition the car into how it will be at the next event
+                               current_pos + brake_currspeed_dist,  # new position
+                               0, # New speed
+                               -max_accel)
+          nextevent = Event.new(:car_reevaluate_strategy, {:car => car})
+          puts "Car #{car.uid} is BRAKING. For the car in front. Will be done at #{car.position*MILES_FT}ft. #{@t+brake_time}s (in #{brake_time}s). Ending speed: #{car.current_speed*MPH_FTPS}"
+          puts "Car #{car.uid} is BRAKING. Speed=#{car.current_speed}, Accel=#{car.current_acceleration}"
+          queue_event @t+brake_time, nextevent
+          # ALSO, notify cars behind us.
+          # But... ONLY if we're freshly braking
+          if car.strategy != :BRAKING
+            car.strategy = :BRAKING
+            reevaluate_all_car_strats(current_pos, car.direction)
+          else
+            car.strategy = :BRAKING
+          end
+        else
+          # We're already not moving...
+          # Just... stay where we are. Not moving. At all....
+          car = car_transition(car,
+                               current_pos,
+                               0,
+                               0)
+          puts "NOTICE! Falling out of the queue. Indefinite waiting! Car #{car.uid} is waiting at #{current_pos}"
         end
       end
       return nextevent
@@ -450,7 +521,7 @@ class Simulation
                              0)
         # puts "Car #{car.uid} is changing their strategy to: CONSTSPEED at #{car.current_speed} Will reevaluate in #{timetillbrake}, pos=#{car.position}. FullBrakeDist=#{full_brake_dist}"
         puts "Car #{car.uid} is changing their strategy to: CONSTSPEED. Speed=#{car.current_speed}. MaxSpeed=#{car.speed}. Accel=#{car.current_acceleration}"
-        puts "\tMust stop at #{stop_point}, can brake in #{full_brake_dist}ft, and is currently at #{current_pos}. Should stop in #{timetillbrake}"
+        puts "\tMust stop at #{stop_point}, can brake in #{full_brake_dist}ft, and is currently at #{current_pos}. Should stop in #{timetillbrake}s (at #{@t+timetillbrake})"
         car.strategy = :CONSTSPEED
         nextevent = Event.new(:car_reevaluate_strategy, {:car => car})
         queue_event @t + timetillbrake, nextevent
@@ -564,6 +635,11 @@ class Simulation
     puts "\tNewpos=#{car.position*MILES_FT}"
     puts "\tNewSpeed=#{car.current_speed*MPH_FTPS}"
     puts "\tNewAccel=#{car.current_acceleration}"
+
+    if car.old_pos > car.position or car.current_speed < 0
+      puts "Car #{car.uid} has just been programmed to go BACKWARDS! NO! BAD! View above for specifics. new_pos=#{newpos.to_f/MILES_FT*MILES_FT}"
+      exit -1
+    end
 
     return car
   end
