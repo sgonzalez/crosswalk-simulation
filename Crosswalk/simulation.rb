@@ -22,6 +22,9 @@ STOP_AT_LIGHT = DISTANCE_EDGE_MIDDLE - WIDTH_CROSSWALK/2 # position where cars a
 TIME_RED = 12
 TIME_YELLOW = 8
 
+DEBUG = false
+VERBOSE = false
+
 MINUTE = 60
 MILES_FT = 5280
 
@@ -216,23 +219,43 @@ class Simulation
     # CONVERT THE POSITION TO FEET
     current_pos = car.old_pos*MILES_FT
     curr_accel = car.current_acceleration
-
     old_speed = car.old_s*MPH_FTPS
     curr_speed = old_speed + (time - car.old_t)*curr_accel
+    if VERBOSE
+      puts "CALCULATE CURRENT POSITION of Car #{car.uid}"
+      puts "Old position: #{current_pos}"
+      puts "Acceleration: #{curr_accel}"
+      puts "Time diff: #{time - car.old_t} (#{time} - #{car.old_t})"
+      puts "Old Speed: #{old_speed}"
+      puts "Curr Speed must be: #{old_speed}"
+    end
+
 
 
     # perform the evolution from car.old_t to time
     # We CAN assume that the current speed has been and will be constant throughout the interval
     if curr_accel == 0
       current_pos += (time - car.old_t)*curr_speed
+      if VERBOSE
+        puts "current_pos must then be #{current_pos}; after the evolution of #{(time - car.old_t)*curr_speed}"
+      end
     else
       # Either accelerating or decelerating
       #
       # Integral under the speed-square
       current_pos += (time - car.old_t) * [curr_speed, old_speed].min
+      if VERBOSE
+        puts "factor in the base travel (lowest speed=#{[curr_speed, old_speed].min}), travel = #{(time - car.old_t) * [curr_speed, old_speed].min}"
+      end
 
       # Integral under the upper speed-triangle
       current_pos += (time - car.old_t) * ( [curr_speed, old_speed].max - [curr_speed, old_speed].min ) / 2
+      if VERBOSE
+        puts "factor in te speed change travel: travel = #{(time - car.old_t) * ( [curr_speed, old_speed].max - [curr_speed, old_speed].min ) / 2}, and current_pos must then be #{current_pos}"
+      end
+    end
+    if VERBOSE
+      puts "END CALCULATION. Net effect: #{current_pos - car.old_pos*MILES_FT}"
     end
     return current_pos
   end
