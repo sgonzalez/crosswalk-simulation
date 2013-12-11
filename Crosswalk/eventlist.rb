@@ -13,9 +13,12 @@ class Simulation
   end
   
   def queue_event when_t, eventdata
-      node = EventNode.new(when_t, eventdata)
-      @eventlist << node
-      @eventlist.sort_by! &:when_t
+    if when_t < 0 or when_t > 10000
+      puts "ERROR: Time outside of range! Got #{when_t}. Event: #{eventdata}"
+    end
+    node = EventNode.new(when_t, eventdata)
+    @eventlist << node
+    @eventlist.sort_by! &:when_t
   end
   
   def next_event

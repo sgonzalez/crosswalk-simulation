@@ -22,13 +22,12 @@ STOP_AT_LIGHT = DISTANCE_EDGE_MIDDLE - WIDTH_CROSSWALK/2 # position where cars a
 TIME_RED = 12
 TIME_YELLOW = 8
 
-DEBUG = false
+DEBUG = true
 VERBOSE = false
 
 MINUTE = 60
 MILES_FT = 5280
 
-# MPH -> FPS
 MPH_FTPS = 5280.0 / 3600.0
 
 STREAM_PEOPLE = 1
@@ -38,7 +37,7 @@ TRACE_PERIOD = 0.1 # how often to write to trace file in seconds
 
 class Simulation
 	  
-	def initialize( experiment, time, seed, trace )
+	def initialize( experiment, time, seed, nsar_file, ddr_file, trace )
 		puts "\x1b[0;1mExperiment #{experiment}; Tracefile #{trace}; Time #{time} minutes; Seed #{seed}\x1b[0m\n\n"
 	  
 	  @run_time = time*MINUTE
@@ -52,6 +51,7 @@ class Simulation
     @trace_file = File.open(trace, "w")
     @trace_number = 0
     @trace_fire_yet = false
+    @nonstat_arr = process_nsar_file(nsar_file)
     
     # State
     @people = []
@@ -157,13 +157,18 @@ class Simulation
   def get_car_ahead c
     # Called bestcar because it assumes no passing, which until is WRONG the entire strategies logic is done
     bestcar = nil
+    cpos = calculate_current_position @t, c
     @cars.each do |ocar|
       # Get the car that is headed the same direction,
       # is ahead of the current car,
       # and is the best: is CLOSEST to the current car
       # Note the synergy between 'ahead of the current car' and 'minimum distance' results in 'closest ahead of'
       # Also not the lack of position equivalence. It's reasoned that cars CANNOT be in the same position
-      if ocar.direction == c.direction and ocar.position > c.position and (bestcar.nil? or ocar.position < bestcar.position)
+      ocarpos = calculate_current_position @t, ocar
+      # if ocar.direction == c.direction and ocar.position > c.position and (bestcar.nil? or ocar.position < bestcar.position)
+      #   bestcar = ocar
+      # end
+      if ocar.direction == c.direction and ocarpos > cpos and (bestcar.nil? or ocarpos < calculate_current_position(@t, bestcar))
         bestcar = ocar
       end
     end
@@ -251,12 +256,39 @@ class Simulation
       # Integral under the upper speed-triangle
       current_pos += (time - car.old_t) * ( [curr_speed, old_speed].max - [curr_speed, old_speed].min ) / 2
       if VERBOSE
-        puts "factor in te speed change travel: travel = #{(time - car.old_t) * ( [curr_speed, old_speed].max - [curr_speed, old_speed].min ) / 2}, and current_pos must then be #{current_pos}"
+        puts "factor in the speed change travel: travel = #{(time - car.old_t) * ( [curr_speed, old_speed].max - [curr_speed, old_speed].min ) / 2}, and current_pos must then be #{current_pos}"
       end
     end
     if VERBOSE
       puts "END CALCULATION. Net effect: #{current_pos - car.old_pos*MILES_FT}"
     end
     return current_pos
+  end
+
+  def process_nsar_file f
+    # f contains our non-stationary arrival rates
+    ifile = File.open(f, 'r')
+    nsarr = []
+    ifile.each_line do |line|
+      linesplit = line.split
+      time = linesplit[0].to_f*MINUTE
+      lmbda = linesplit[1].to_f
+      nsarr << [time, lmbda]
+    end
+    return nsarr
+  end
+
+  def get_lambda time
+    # Get the lambda for the corresponding time
+    @nonstat_arr.each do |nsar|
+      if nsar[0] >= time
+        # This is our lambda
+        puts "Lambda = #{nsar[1]}"
+        return nsar[1]
+      end
+    end
+    # Fallback
+    puts "WARNING: Simulation time greater than the arrival rate file. Returning the default of 1"
+    return 1
   end
 end
