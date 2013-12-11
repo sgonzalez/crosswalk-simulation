@@ -37,7 +37,7 @@ TRACE_PERIOD = 0.1 # how often to write to trace file in seconds
 
 class Simulation
 	  
-	def initialize( experiment, time, seed, nsar_file, ddr_file, trace )
+	def initialize( experiment, time, seed, pedarriv, autoarriv, pedrate, autorate, trace )
 		puts "\x1b[0;1mExperiment #{experiment}; Tracefile #{trace}; Time #{time} minutes; Seed #{seed}\x1b[0m\n\n"
 	  
 	  @run_time = time*MINUTE
@@ -51,7 +51,13 @@ class Simulation
     @trace_file = File.open(trace, "w")
     @trace_number = 0
     @trace_fire_yet = false
-    @nonstat_arr = process_nsar_file(nsar_file)
+    @pedarriv = process_nsar_file(pedarriv)
+    @autoarriv = process_nsar_file(autoarriv)
+    @pedrates = process_ddr_file(pedrate)
+    @autorates = process_ddr_file(autorate)
+
+    @totalevents = 0
+    @carevents = {}
     
     # State
     @people = []
@@ -98,6 +104,10 @@ class Simulation
     puts "OUTPUT sim_duration          #{"%0.4f" % (@t.to_f/MINUTE)}"
     puts "OUTPUT pedwait_min #{@wlf_person_waits.get_min}  pedwait_mean #{@wlf_person_waits.get_mean}  pedwait_stdev #{@wlf_person_waits.get_stdev}  pedwait_max #{@wlf_person_waits.get_max}"
     puts "OUTPUT carwait_min #{@wlf_car_waits.get_min}  carwait_mean #{@wlf_car_waits.get_mean}  carwait_stdev #{@wlf_car_waits.get_stdev}  carwait_max #{@wlf_car_waits.get_max}"
+    puts "OUTPUT total_events #{@totalevents}"
+    @carevents.each do |carid, num|
+      puts "OUTPUT car_#{carid}_events #{num}"
+    end
 
   	return 0;
 	end
@@ -159,6 +169,9 @@ class Simulation
     bestcar = nil
     cpos = calculate_current_position @t, c
     @cars.each do |ocar|
+      if c.uid == ocar.uid
+        next
+      end
       # Get the car that is headed the same direction,
       # is ahead of the current car,
       # and is the best: is CLOSEST to the current car
@@ -168,7 +181,8 @@ class Simulation
       # if ocar.direction == c.direction and ocar.position > c.position and (bestcar.nil? or ocar.position < bestcar.position)
       #   bestcar = ocar
       # end
-      if ocar.direction == c.direction and ocarpos > cpos and (bestcar.nil? or ocarpos < calculate_current_position(@t, bestcar))
+      # Also... don't pick yourself!
+      if c.uid != ocar.uid and ocar.direction == c.direction and ocarpos > cpos and (bestcar.nil? or ocarpos < calculate_current_position(@t, bestcar))
         bestcar = ocar
       end
     end
@@ -204,8 +218,7 @@ class Simulation
 	end
 	
 	def add_wait_point_for_car c
-	  wait = c.wait_finish - c.wait_start
-	  @wlf_car_waits.add_point wait
+	  @wlf_car_waits.add_point c.wait_time
 	end
 	
 	def add_wait_point_for_person p
@@ -278,17 +291,42 @@ class Simulation
     return nsarr
   end
 
-  def get_lambda time
+  def get_lambda time, arrivlist
     # Get the lambda for the corresponding time
-    @nonstat_arr.each do |nsar|
+    arrivlist.each do |nsar|
       if nsar[0] >= time
         # This is our lambda
-        puts "Lambda = #{nsar[1]}"
         return nsar[1]
       end
     end
-    # Fallback
-    puts "WARNING: Simulation time greater than the arrival rate file. Returning the default of 1"
+    # Fallback to 1
     return 1
+  end
+
+  def process_ddr_file f
+    # f contains our data-driven rates. I.e. it defines our distribution.
+    # All this function does is turn it into a list of pairs
+    ddrs = []
+    ifile = File.open(f, 'r')
+    accum = 0
+    ifile.each_line do |line|
+      linesplit = line.split
+      if linesplit[1].to_f > 0
+        rate = linesplit[0].to_f
+        accum += linesplit[1].to_f
+        # accum basically turns this into a CDF-like object
+        ddrs << [rate, accum]
+      end
+    end
+    return ddrs
+  end
+
+  def get_datadriven_rate lehmerstream, ratelist
+    pctbucket = Uniform(0, 100, @rands.get_random(lehmerstream))
+    ratelist.each do |ddr|
+      if ddr[1] >= pctbucket
+        return ddr[0]
+      end
+    end
   end
 end

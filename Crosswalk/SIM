@@ -6,12 +6,12 @@
 
 require_relative "simulation"
 
-unless ARGV.length == 6
+unless ARGV.length == 8
   # puts "Usage: SIM N TIME SEED PEDARRIVAL AUTOARRIVAL PEDRATE AUTORATE TRACE"
-  puts "Usage: SIM N <runtime> <seed> <nsarrfile> <ddrfile> <tracefile>"
+  puts "Usage: SIM N <runtime> <seed> <pedarriv> <autoarriv> <pedrate> <autorate> <tracefile>"
   exit 1
 end
 
-Simulation.new ARGV[0][0], ARGV[1].to_i, ARGV[2].to_f, ARGV[3], ARGV[4], ARGV[5]
+Simulation.new ARGV[0][0], ARGV[1].to_i, ARGV[2].to_f, ARGV[3], ARGV[4], ARGV[5], ARGV[6], ARGV[7]
 
 exit 0

@@ -13,12 +13,24 @@ class Simulation
   end
   
   def queue_event when_t, eventdata
+    # Update total events
+    @totalevents += 1
+    # Update events per car (if this is a car event
+    if eventdata.include? :car
+      if ! @carevents.include? eventdata[:car].uid
+        @carevents[eventdata[:car].uid] = 0
+      end
+      @carevents[eventdata[:car].uid] += 1
+    end
+
+
     if when_t < 0 or when_t > 10000
       puts "ERROR: Time outside of range! Got #{when_t}. Event: #{eventdata}"
     end
     node = EventNode.new(when_t, eventdata)
     @eventlist << node
     @eventlist.sort_by! &:when_t
+
   end
   
   def next_event

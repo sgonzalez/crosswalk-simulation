@@ -15,12 +15,12 @@ Car = Struct.new(
   :old_pos,
   :old_t,
   :old_s,
+  :arrival_time,
   # Suggested Optional (not used immediately)
   :strategy,
-  :wait_start,
-  :wait_finish,
   :current_speed,
   :current_acceleration,
-  :at_stoplight
+  :at_stoplight,
+  :wait_time
 )
 
